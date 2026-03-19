@@ -51,7 +51,7 @@ export function AppSidebar() {
             Z
           </div>
           {!collapsed && (
-            <span className="font-semibold text-foreground text-lg tracking-tight">
+            <span className="font-mono font-semibold text-foreground text-lg tracking-tight">
               Zuper Preflight
             </span>
           )}
