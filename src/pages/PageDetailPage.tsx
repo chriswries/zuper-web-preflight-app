@@ -5,12 +5,12 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { useNavigate, useParams } from "react-router-dom";
 
 const stages = [
-  { number: 1, name: "Content & SEO", agents: [1, 2, 3] },
-  { number: 2, name: "Technical", agents: [4, 5] },
-  { number: 3, name: "Brand & Copy", agents: [6, 7, 8] },
-  { number: 4, name: "Visual & UX", agents: [9, 10] },
-  { number: 5, name: "Performance", agents: [11, 12] },
-  { number: 6, name: "Final", agents: [13, 14, 15] },
+  { number: 1, name: "Content & Migration", agents: [1, 2, 3, 4] },
+  { number: 2, name: "SEO & Discoverability", agents: [5, 6, 7] },
+  { number: 3, name: "Brand & Voice", agents: [8, 9] },
+  { number: 4, name: "Functionality", agents: [10, 11] },
+  { number: 5, name: "Performance & Compat.", agents: [12, 13, 14] },
+  { number: 6, name: "Security", agents: [15] },
 ];
 
 export default function PageDetailPage() {
