@@ -3,6 +3,9 @@ import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthGuard } from "@/components/AuthGuard";
+import { RoleGuard } from "@/components/RoleGuard";
 import { AppLayout } from "@/components/AppLayout";
 
 import LoginPage from "./pages/LoginPage";
@@ -26,23 +29,27 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/" element={<AppLayout />}>
-            <Route index element={<Navigate to="/pages" replace />} />
-            <Route path="pages" element={<PagesPage />} />
-            <Route path="pages/new" element={<AddPagePage />} />
-            <Route path="pages/:id" element={<PageDetailPage />} />
-            <Route path="pages/:id/agents/:agentId" element={<AgentReportPage />} />
-            <Route path="queue" element={<QueuePage />} />
-            <Route path="dashboard" element={<DashboardPage />} />
-            <Route path="audit" element={<AuditPage />} />
-            <Route path="settings/agents" element={<AgentsPage />} />
-            <Route path="settings/users" element={<UsersPage />} />
-            <Route path="settings/system" element={<SystemPage />} />
-          </Route>
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route element={<AuthGuard />}>
+              <Route path="/" element={<AppLayout />}>
+                <Route index element={<Navigate to="/pages" replace />} />
+                <Route path="pages" element={<PagesPage />} />
+                <Route path="pages/new" element={<AddPagePage />} />
+                <Route path="pages/:id" element={<PageDetailPage />} />
+                <Route path="pages/:id/agents/:agentId" element={<AgentReportPage />} />
+                <Route path="queue" element={<QueuePage />} />
+                <Route path="dashboard" element={<RoleGuard requiredRole="admin"><DashboardPage /></RoleGuard>} />
+                <Route path="audit" element={<RoleGuard requiredRole="admin"><AuditPage /></RoleGuard>} />
+                <Route path="settings/agents" element={<RoleGuard requiredRole="admin"><AgentsPage /></RoleGuard>} />
+                <Route path="settings/users" element={<RoleGuard requiredRole="admin"><UsersPage /></RoleGuard>} />
+                <Route path="settings/system" element={<RoleGuard requiredRole="admin"><SystemPage /></RoleGuard>} />
+              </Route>
+            </Route>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
