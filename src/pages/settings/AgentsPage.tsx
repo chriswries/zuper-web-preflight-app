@@ -1,10 +1,23 @@
 import { Bot } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
-const agentStubs = Array.from({ length: 15 }, (_, i) => ({
-  number: i + 1,
-  name: `Agent ${i + 1}`,
-}));
+const agentStubs = [
+  { number: 1, name: "Content Parity Agent" },
+  { number: 2, name: "Copy Editing Agent" },
+  { number: 3, name: "Link & Asset Integrity Agent" },
+  { number: 4, name: "Redirect Validation Agent" },
+  { number: 5, name: "Technical SEO Agent" },
+  { number: 6, name: "On-Page SEO Agent" },
+  { number: 7, name: "Structured Data Agent" },
+  { number: 8, name: "Brand Voice Agent" },
+  { number: 9, name: "Visual Design & Brand Compliance" },
+  { number: 10, name: "Component Functionality Agent" },
+  { number: 11, name: "Tracking & Analytics Agent" },
+  { number: 12, name: "Performance Benchmarking Agent" },
+  { number: 13, name: "Responsive & Cross-Browser Agent" },
+  { number: 14, name: "Accessibility Agent" },
+  { number: 15, name: "Security & Headers Agent" },
+];
 
 export default function AgentsPage() {
   return (
