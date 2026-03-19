@@ -259,8 +259,8 @@ export function AddToQueueModal({ open, onClose, onSuccess }: AddToQueueModalPro
                           )}
                           {row.valid && row.duplicate && (
                             <div className="flex items-center gap-1">
-                              <AlertTriangle className="h-3 w-3 text-amber-500" />
-                              <span className="text-xs text-amber-600">
+                              <AlertTriangle className="h-3 w-3 text-destructive" />
+                              <span className="text-xs text-muted-foreground">
                                 In {row.duplicateSource}
                               </span>
                             </div>
