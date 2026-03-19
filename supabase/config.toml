@@ -1,1 +1,7 @@
 project_id = "wyaanlcrtesunqbotcjf"
+
+[functions.fetch-page-content]
+verify_jwt = false
+
+[functions.browserless-render]
+verify_jwt = false
