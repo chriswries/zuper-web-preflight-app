@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
-type Status = "passed" | "failed" | "warning" | "error" | "running" | "queued" | "not_started" | "skipped" | "pending" | "in_progress" | "passed_with_warnings" | "archived";
+type Status = "passed" | "failed" | "warning" | "error" | "running" | "queued" | "not_started" | "skipped" | "pending" | "in_progress" | "passed_with_warnings" | "archived" | "claimed" | "promoted";
 
 const statusConfig: Record<Status, { label: string; className: string }> = {
   passed: { label: "Passed", className: "bg-zuper-green text-white border-transparent" },
