@@ -23,10 +23,27 @@ import {
 } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
-const operatorNav = [
+function useQueueCount() {
+  const { data } = useQuery({
+    queryKey: ["queue-count"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("page_queue")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "queued");
+      if (error) return 0;
+      return count ?? 0;
+    },
+    refetchInterval: 30_000,
+  });
+  return data ?? 0;
+}
+
+const operatorNavBase = [
   { title: "Pages", url: "/pages", icon: FileText },
-  { title: "QA Queue", url: "/queue", icon: ListTodo, badge: "0" },
 ];
 
 const adminNav = [
@@ -44,6 +61,12 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const { profile, role, isAdmin, signOut } = useAuth();
+  const queueCount = useQueueCount();
+
+  const operatorNav = [
+    ...operatorNavBase,
+    { title: "QA Queue", url: "/queue", icon: ListTodo, badge: String(queueCount) },
+  ];
 
   const mainNav = isAdmin ? [...operatorNav, ...adminNav] : operatorNav;
 
