@@ -43,7 +43,7 @@ export default function PagesPage() {
         .order("created_at", { ascending: false });
 
       if (statusFilter !== "all") {
-        query = query.eq("status", statusFilter);
+        query = query.eq("status", statusFilter as "pending" | "in_progress" | "passed" | "failed" | "passed_with_warnings" | "archived");
       }
 
       const { data, error } = await query;
