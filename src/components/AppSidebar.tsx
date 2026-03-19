@@ -61,6 +61,12 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const { profile, role, isAdmin, signOut } = useAuth();
+  const queueCount = useQueueCount();
+
+  const operatorNav = [
+    ...operatorNavBase,
+    { title: "QA Queue", url: "/queue", icon: ListTodo, badge: String(queueCount) },
+  ];
 
   const mainNav = isAdmin ? [...operatorNav, ...adminNav] : operatorNav;
 
