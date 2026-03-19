@@ -14,16 +14,428 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      agent_configs: {
+        Row: {
+          agent_id: string
+          config_key: string
+          config_value: string
+          description: string | null
+          id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          agent_id: string
+          config_key: string
+          config_value?: string
+          description?: string | null
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          agent_id?: string
+          config_key?: string
+          config_value?: string
+          description?: string | null
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_configs_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_configs_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_runs: {
+        Row: {
+          agent_id: string
+          completed_at: string | null
+          created_at: string
+          duration_ms: number | null
+          error_message: string | null
+          id: string
+          model_used: string | null
+          page_id: string
+          report: Json | null
+          run_number: number
+          started_at: string | null
+          status: Database["public"]["Enums"]["run_status"]
+          summary_stats: Json | null
+        }
+        Insert: {
+          agent_id: string
+          completed_at?: string | null
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          model_used?: string | null
+          page_id: string
+          report?: Json | null
+          run_number?: number
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["run_status"]
+          summary_stats?: Json | null
+        }
+        Update: {
+          agent_id?: string
+          completed_at?: string | null
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          model_used?: string | null
+          page_id?: string
+          report?: Json | null
+          run_number?: number
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["run_status"]
+          summary_stats?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_runs_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_runs_page_id_fkey"
+            columns: ["page_id"]
+            isOneToOne: false
+            referencedRelation: "pages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agents: {
+        Row: {
+          agent_number: number
+          confidence_tier: Database["public"]["Enums"]["confidence_tier"]
+          description: string | null
+          id: string
+          is_active: boolean
+          is_blocking: boolean
+          migration_only: boolean
+          model_tier: Database["public"]["Enums"]["model_tier"]
+          name: string
+          processing_model: string | null
+          requires_browserless: boolean
+          sort_order: number
+          stage_number: number
+          system_prompt: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          agent_number: number
+          confidence_tier?: Database["public"]["Enums"]["confidence_tier"]
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_blocking?: boolean
+          migration_only?: boolean
+          model_tier?: Database["public"]["Enums"]["model_tier"]
+          name: string
+          processing_model?: string | null
+          requires_browserless?: boolean
+          sort_order?: number
+          stage_number: number
+          system_prompt?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          agent_number?: number
+          confidence_tier?: Database["public"]["Enums"]["confidence_tier"]
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_blocking?: boolean
+          migration_only?: boolean
+          model_tier?: Database["public"]["Enums"]["model_tier"]
+          name?: string
+          processing_model?: string | null
+          requires_browserless?: boolean
+          sort_order?: number
+          stage_number?: number
+          system_prompt?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agents_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      audit_log: {
+        Row: {
+          action_type: string
+          after_state: Json | null
+          before_state: Json | null
+          created_at: string
+          details: Json | null
+          entity_id: string | null
+          entity_type: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          action_type: string
+          after_state?: Json | null
+          before_state?: Json | null
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          action_type?: string
+          after_state?: Json | null
+          before_state?: Json | null
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      page_queue: {
+        Row: {
+          batch_name: string | null
+          claimed_by: string | null
+          created_at: string
+          created_by: string
+          id: string
+          new_url: string
+          old_url: string | null
+          promoted_page_id: string | null
+          slug: string | null
+          sort_order: number
+          status: Database["public"]["Enums"]["queue_status"]
+          target_keyword: string | null
+          updated_at: string
+        }
+        Insert: {
+          batch_name?: string | null
+          claimed_by?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          new_url: string
+          old_url?: string | null
+          promoted_page_id?: string | null
+          slug?: string | null
+          sort_order?: number
+          status?: Database["public"]["Enums"]["queue_status"]
+          target_keyword?: string | null
+          updated_at?: string
+        }
+        Update: {
+          batch_name?: string | null
+          claimed_by?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          new_url?: string
+          old_url?: string | null
+          promoted_page_id?: string | null
+          slug?: string | null
+          sort_order?: number
+          status?: Database["public"]["Enums"]["queue_status"]
+          target_keyword?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "page_queue_claimed_by_fkey"
+            columns: ["claimed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "page_queue_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "page_queue_promoted_page_id_fkey"
+            columns: ["promoted_page_id"]
+            isOneToOne: false
+            referencedRelation: "pages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pages: {
+        Row: {
+          created_at: string
+          created_by: string
+          figma_comp_path: string | null
+          id: string
+          mode: Database["public"]["Enums"]["page_mode"]
+          new_url: string
+          old_url: string | null
+          slug: string | null
+          status: Database["public"]["Enums"]["page_status"]
+          target_keyword: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          figma_comp_path?: string | null
+          id?: string
+          mode?: Database["public"]["Enums"]["page_mode"]
+          new_url: string
+          old_url?: string | null
+          slug?: string | null
+          status?: Database["public"]["Enums"]["page_status"]
+          target_keyword?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          figma_comp_path?: string | null
+          id?: string
+          mode?: Database["public"]["Enums"]["page_mode"]
+          new_url?: string
+          old_url?: string | null
+          slug?: string | null
+          status?: Database["public"]["Enums"]["page_status"]
+          target_keyword?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pages_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      users: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          email: string
+          id: string
+          is_active: boolean
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          email: string
+          id: string
+          is_active?: boolean
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          email?: string
+          id?: string
+          is_active?: boolean
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "operator"
+      confidence_tier: "high" | "medium" | "lower"
+      model_tier: "haiku" | "sonnet"
+      page_mode: "migration" | "ongoing"
+      page_status:
+        | "pending"
+        | "in_progress"
+        | "passed"
+        | "failed"
+        | "passed_with_warnings"
+        | "archived"
+      queue_status: "queued" | "claimed" | "promoted" | "skipped"
+      run_status:
+        | "not_started"
+        | "skipped"
+        | "queued"
+        | "running"
+        | "passed"
+        | "failed"
+        | "warning"
+        | "error"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +562,30 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "operator"],
+      confidence_tier: ["high", "medium", "lower"],
+      model_tier: ["haiku", "sonnet"],
+      page_mode: ["migration", "ongoing"],
+      page_status: [
+        "pending",
+        "in_progress",
+        "passed",
+        "failed",
+        "passed_with_warnings",
+        "archived",
+      ],
+      queue_status: ["queued", "claimed", "promoted", "skipped"],
+      run_status: [
+        "not_started",
+        "skipped",
+        "queued",
+        "running",
+        "passed",
+        "failed",
+        "warning",
+        "error",
+      ],
+    },
   },
 } as const
