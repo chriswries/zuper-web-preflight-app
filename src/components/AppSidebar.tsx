@@ -88,12 +88,12 @@ export function AppSidebar() {
                       {!collapsed && (
                         <span className="flex-1">{item.title}</span>
                       )}
-                      {!collapsed && "badge" in item && item.badge !== undefined && (
+                      {!collapsed && "badge" in item && (
                         <Badge
                           variant="secondary"
                           className="ml-auto text-xs h-5 min-w-5 flex items-center justify-center"
                         >
-                          {item.badge}
+                          {String((item as { badge: string }).badge)}
                         </Badge>
                       )}
                     </NavLink>
