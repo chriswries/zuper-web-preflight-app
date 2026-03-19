@@ -88,7 +88,7 @@ export function AppSidebar() {
                       {!collapsed && (
                         <span className="flex-1">{item.title}</span>
                       )}
-                      {!collapsed && item.badge !== undefined && (
+                      {!collapsed && "badge" in item && item.badge !== undefined && (
                         <Badge
                           variant="secondary"
                           className="ml-auto text-xs h-5 min-w-5 flex items-center justify-center"
