@@ -16,6 +16,8 @@ const statusConfig: Record<Status, { label: string; className: string }> = {
   in_progress: { label: "In Progress", className: "bg-primary text-primary-foreground border-transparent animate-pulse" },
   passed_with_warnings: { label: "Passed w/ Warnings", className: "bg-zuper-amber text-white border-transparent" },
   archived: { label: "Archived", className: "bg-zuper-gray text-white border-transparent" },
+  claimed: { label: "Claimed", className: "bg-primary/80 text-primary-foreground border-transparent" },
+  promoted: { label: "Promoted", className: "bg-zuper-green text-white border-transparent" },
 };
 
 interface StatusBadgeProps {
