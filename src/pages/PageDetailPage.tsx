@@ -485,7 +485,9 @@ export default function PageDetailPage() {
                             selectedAgent === agentNum ? "bg-accent" : ""
                           }`}
                           onClick={() => {
-                            if (hasReport || run) {
+                            if (hasReport && agentId) {
+                              navigate(`/pages/${id}/agents/${agentId}`);
+                            } else if (run) {
                               setSelectedAgent(selectedAgent === agentNum ? null : agentNum);
                               setSelectedRunId(null);
                             }
