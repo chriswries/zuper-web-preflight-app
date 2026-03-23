@@ -323,7 +323,7 @@ export function exportPDF(page: PageForExport, latestRuns: Map<number, AgentRunF
 
     const disclaimer = SCOPE_DISCLAIMERS[agentNum];
     if (disclaimer) {
-      drawText(`⚠ ${disclaimer}`, ml, cw, 7, "italic", [180, 130, 40]);
+      drawText(`[!] ${disclaimer}`, ml, cw, 7, "italic", [180, 130, 40]);
       y += 1;
     }
 
