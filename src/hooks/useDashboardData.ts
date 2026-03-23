@@ -204,17 +204,28 @@ export function useDashboardData(dateRange: DateRange) {
   }).length;
   const pipelineCompletionRate = totalPages > 0 ? (pagesWithAllRuns / totalPages) * 100 : 0;
 
-  // Operator breakdown
+  // Operator breakdown — first-pass rate = pages where all blocking agents passed on run_number=1
+  const blockingAgentIds = new Set(agents.filter((a) => a.is_blocking).map((a) => a.id));
   const operatorBreakdown: OperatorRow[] = users
     .map((user) => {
       const userPages = pages.filter((p) => p.created_by === user.id);
-      const passed = userPages.filter((p) => p.status === "passed" || p.status === "passed_with_warnings").length;
+      const userCompleted = userPages.filter((p) => ["passed", "failed", "passed_with_warnings"].includes(p.status));
+      let firstPassCount = 0;
+      for (const page of userCompleted) {
+        const firstRuns = agentRuns.filter(
+          (r) => r.page_id === page.id && r.run_number === 1 && blockingAgentIds.has(r.agent_id)
+        );
+        const allPassed = firstRuns.length > 0 && firstRuns.every(
+          (r) => r.status === "passed" || r.status === "warning"
+        );
+        if (allPassed) firstPassCount++;
+      }
       return {
         user_id: user.id,
         display_name: user.display_name || user.email,
         total_pages: userPages.length,
-        passed_pages: passed,
-        first_pass_rate: userPages.length > 0 ? passed / userPages.length : 0,
+        passed_pages: firstPassCount,
+        first_pass_rate: userCompleted.length > 0 ? firstPassCount / userCompleted.length : 0,
       };
     })
     .filter((o) => o.total_pages > 0)
