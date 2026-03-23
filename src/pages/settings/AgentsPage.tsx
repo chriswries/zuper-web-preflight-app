@@ -20,9 +20,9 @@ const CONFIDENCE_LABELS: Record<string, { label: string; className: string }> = 
 
 // Agents that have runtime config in agent_configs
 const CONFIGURABLE_AGENTS: Record<number, { config_key: string; label: string; description: string }> = {
-  2: { config_key: "brand_voice_guidelines", label: "Brand Voice Guidelines", description: "Brand voice and tone guidelines for content evaluation." },
-  8: { config_key: "design_tokens", label: "Design Tokens", description: "Design system tokens (colors, spacing, typography) for visual consistency checks." },
-  9: { config_key: "copy_style_guide", label: "Copy Style Guide", description: "Copy style guidelines for messaging and tone evaluation." },
+  2: { config_key: "copy_style_guide", label: "Copy Style Guide", description: "Capitalization, punctuation, number formatting, and spelling rules for copy editing checks." },
+  8: { config_key: "brand_voice_guidelines", label: "Brand Voice Guidelines", description: "Brand voice, tone, positioning, and approved terminology for voice compliance checks." },
+  9: { config_key: "design_tokens", label: "Design Tokens", description: "Brand colors, typography, CTA styling, and spacing rules for visual design checks." },
   11: { config_key: "tracking_ids", label: "Tracking IDs", description: "Expected analytics/tracking IDs to verify on pages. Required for accurate checks." },
   15: { config_key: "allowed_third_party_domains", label: "Allowed Third-Party Domains", description: "Whitelist of allowed external domains for security checks." },
 };
