@@ -386,7 +386,7 @@ export default function PageDetailPage() {
             </Badge>
           </div>
           <p className="text-sm text-muted-foreground">
-            Added {format(new Date(page.created_at), "MMM d, yyyy")}
+            Added {page.created_at && !isNaN(new Date(page.created_at).getTime()) ? format(new Date(page.created_at), "MMM d, yyyy") : "Unknown"}
           </p>
           {page.mode === "migration" && page.old_url && (
             <div className="flex items-center gap-1 mt-1">
