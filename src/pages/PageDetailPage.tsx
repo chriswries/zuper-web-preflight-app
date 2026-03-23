@@ -1,9 +1,9 @@
-import { ArrowLeft, Play, RotateCcw, Download, Loader2, ExternalLink, History, FileText, ChevronDown } from "lucide-react";
+import { ArrowLeft, Play, RotateCcw, Download, Loader2, ExternalLink, FileText, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/StatusBadge";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { useNavigate, useParams, useSearchParams, Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,11 +12,11 @@ import { format } from "date-fns";
 import { useState, useMemo, useCallback } from "react";
 import { toast } from "sonner";
 import { PipelineStageBar } from "@/components/pipeline/PipelineStageBar";
-import { AgentReportCard } from "@/components/pipeline/AgentReportCard";
 import { RunPipelineDialog } from "@/components/pipeline/RunPipelineDialog";
 import { GateWarningDialog } from "@/components/pipeline/GateWarningDialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { exportMarkdown, exportPDF } from "@/lib/export-report";
+import { ExpandableAgentRow } from "@/components/pipeline/ExpandableAgentRow";
 
 const stages = [
   { number: 1, name: "Content & Migration", agents: [1, 2, 3, 4] },
