@@ -238,6 +238,41 @@ function buildUserMessage(
   return parts.join("\n\n") || "[No content available]";
 }
 
+/**
+ * Recalculate page status from LATEST run per agent only.
+ */
+async function recalcPageStatus(
+  sb: ReturnType<typeof createClient>,
+  pageId: string
+): Promise<string> {
+  const { data: allRuns } = await sb
+    .from("agent_runs")
+    .select("agent_id, run_number, status, agents!agent_runs_agent_id_fkey(is_blocking)")
+    .eq("page_id", pageId)
+    .order("run_number", { ascending: false });
+
+  if (!allRuns || allRuns.length === 0) return "pending";
+
+  const latestByAgent = new Map<string, { status: string; is_blocking: boolean }>();
+  for (const r of allRuns) {
+    if (!latestByAgent.has(r.agent_id)) {
+      latestByAgent.set(r.agent_id, {
+        status: r.status,
+        is_blocking: (r.agents as unknown as { is_blocking: boolean })?.is_blocking ?? false,
+      });
+    }
+  }
+
+  const runs = Array.from(latestByAgent.values());
+  const active = runs.filter((r) => r.status !== "skipped");
+  if (active.length === 0) return "pending";
+
+  if (active.some((r) => r.status === "running" || r.status === "queued")) return "in_progress";
+  if (active.some((r) => r.is_blocking && (r.status === "failed" || r.status === "error"))) return "failed";
+  if (active.some((r) => r.status === "warning")) return "passed_with_warnings";
+  return "passed";
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -281,7 +316,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { page_id, agent_id } = await req.json();
+    const { page_id, agent_id, recalculate_page_status = false } = await req.json();
 
     if (!page_id || !agent_id) {
       return new Response(
@@ -470,6 +505,16 @@ Deno.serve(async (req) => {
           .eq("id", runId);
       }
 
+      // 9. Recalculate page status if requested (single agent re-run)
+      let pageStatus: string | undefined;
+      if (recalculate_page_status) {
+        pageStatus = await recalcPageStatus(supabase, page_id);
+        await supabase
+          .from("pages")
+          .update({ status: pageStatus, updated_at: new Date().toISOString() })
+          .eq("id", page_id);
+      }
+
       return new Response(
         JSON.stringify({
           success: true,
@@ -478,6 +523,7 @@ Deno.serve(async (req) => {
           duration_ms: durationMs,
           summary_stats: summaryStats,
           report,
+          page_status: pageStatus,
         }),
         {
           status: 200,
@@ -505,8 +551,18 @@ Deno.serve(async (req) => {
           .eq("id", runId);
       }
 
+      // Recalculate page status if requested
+      let pageStatus: string | undefined;
+      if (recalculate_page_status) {
+        pageStatus = await recalcPageStatus(supabase, page_id);
+        await supabase
+          .from("pages")
+          .update({ status: pageStatus, updated_at: new Date().toISOString() })
+          .eq("id", page_id);
+      }
+
       return new Response(
-        JSON.stringify({ error: errorMsg, run_id: runId }),
+        JSON.stringify({ error: errorMsg, run_id: runId, page_status: pageStatus }),
         {
           status: 422,
           headers: { ...corsHeaders, "Content-Type": "application/json" },

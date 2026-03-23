@@ -291,12 +291,6 @@ export default function PageDetailPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Not authenticated");
 
-      // Mark page in_progress
-      await supabase
-        .from("pages")
-        .update({ status: "in_progress", updated_at: new Date().toISOString() })
-        .eq("id", id);
-
       const res = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/run-agent`,
         {
@@ -305,7 +299,11 @@ export default function PageDetailPage() {
             Authorization: `Bearer ${session.access_token}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ page_id: id, agent_id: agentId }),
+          body: JSON.stringify({
+            page_id: id,
+            agent_id: agentId,
+            recalculate_page_status: true,
+          }),
         }
       );
 
