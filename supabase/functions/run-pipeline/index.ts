@@ -20,6 +20,54 @@ interface GateWarning {
   failed_agents: Array<{ agent_number: number; name: string; status: string }>;
 }
 
+/**
+ * Recalculate page status from LATEST run per agent only.
+ * Uses highest run_number per agent_id to avoid stale history affecting status.
+ */
+async function recalcPageStatus(
+  supabase: ReturnType<typeof createClient>,
+  pageId: string
+): Promise<string> {
+  // Get all runs for this page
+  const { data: allRuns } = await supabase
+    .from("agent_runs")
+    .select("agent_id, run_number, status, agents!agent_runs_agent_id_fkey(is_blocking)")
+    .eq("page_id", pageId)
+    .order("run_number", { ascending: false });
+
+  if (!allRuns || allRuns.length === 0) return "pending";
+
+  // Keep only latest run per agent_id
+  const latestByAgent = new Map<string, { status: string; is_blocking: boolean }>();
+  for (const r of allRuns) {
+    if (!latestByAgent.has(r.agent_id)) {
+      latestByAgent.set(r.agent_id, {
+        status: r.status,
+        is_blocking: (r.agents as unknown as { is_blocking: boolean })?.is_blocking ?? false,
+      });
+    }
+  }
+
+  const runs = Array.from(latestByAgent.values());
+  // Exclude skipped from evaluation
+  const active = runs.filter((r) => r.status !== "skipped");
+
+  if (active.length === 0) return "pending";
+
+  const anyRunning = active.some((r) => r.status === "running" || r.status === "queued");
+  if (anyRunning) return "in_progress";
+
+  const anyBlockingFailed = active.some(
+    (r) => r.is_blocking && (r.status === "failed" || r.status === "error")
+  );
+  if (anyBlockingFailed) return "failed";
+
+  const anyWarning = active.some((r) => r.status === "warning");
+  if (anyWarning) return "passed_with_warnings";
+
+  return "passed";
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
