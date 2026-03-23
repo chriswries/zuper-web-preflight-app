@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams, Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -356,8 +356,19 @@ export default function PageDetailPage() {
     confirmDialog.stageNumber
   );
 
+  const [searchParams] = useSearchParams();
+  const fromQueue = searchParams.get("from") === "queue";
+
   return (
     <div className="space-y-6">
+      {/* Breadcrumb from queue */}
+      {fromQueue && (
+        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+          <Link to="/queue" className="hover:text-foreground transition-colors">QA Queue</Link>
+          <span>/</span>
+          <span className="text-foreground">{page.slug || "Page Detail"}</span>
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => navigate("/pages")}>

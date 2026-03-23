@@ -1,8 +1,10 @@
-import { useState } from "react";
-import { ListTodo, Plus, GripVertical, Play, SkipForward, RotateCcw, Loader2 } from "lucide-react";
+import { useState, useMemo } from "react";
+import { ListTodo, Plus, GripVertical, Play, SkipForward, RotateCcw, Loader2, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/StatusBadge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -26,6 +28,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { Tables } from "@/integrations/supabase/types";
+import { format } from "date-fns";
 
 type QueueRow = Tables<"page_queue"> & {
   creator: { display_name: string | null } | null;
@@ -126,6 +129,8 @@ export default function QueuePage() {
   const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [claiming, setClaiming] = useState<string | null>(null);
+  const [batchFilter, setBatchFilter] = useState<string>("all");
+  const [bulkAction, setBulkAction] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -143,6 +148,38 @@ export default function QueuePage() {
       return data as QueueRow[];
     },
   });
+
+  // Batch names for filter
+  const batchNames = useMemo(() => {
+    if (!items) return [];
+    const names = new Set<string>();
+    items.forEach((i) => { if (i.batch_name) names.add(i.batch_name); });
+    return Array.from(names).sort();
+  }, [items]);
+
+  // Filtered items
+  const filteredItems = useMemo(() => {
+    if (!items) return [];
+    if (batchFilter === "all") return items;
+    if (batchFilter === "__none__") return items.filter((i) => !i.batch_name);
+    return items.filter((i) => i.batch_name === batchFilter);
+  }, [items, batchFilter]);
+
+  // Metrics
+  const metrics = useMemo(() => {
+    if (!items) return { total: 0, remaining: 0, promotedToday: 0 };
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return {
+      total: items.filter((i) => i.status === "queued" || i.status === "claimed").length,
+      remaining: items.filter((i) => i.status === "queued").length,
+      promotedToday: items.filter((i) => {
+        if (i.status !== "promoted") return false;
+        const updated = new Date(i.updated_at);
+        return updated >= today;
+      }).length,
+    };
+  }, [items]);
 
   const updateQueue = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Record<string, unknown> }) => {
@@ -179,7 +216,7 @@ export default function QueuePage() {
 
       toast.success("Page created from queue item");
       queryClient.invalidateQueries({ queryKey: ["queue"] });
-      navigate(`/pages/${pageId}`);
+      navigate(`/pages/${pageId}?from=queue`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to claim");
     } finally {
@@ -202,45 +239,140 @@ export default function QueuePage() {
     });
   };
 
+  const handleBulkSkip = async () => {
+    if (!items) return;
+    setBulkAction(true);
+    const batch = batchFilter === "all" ? items : filteredItems;
+    const toSkip = batch.filter((i) => i.status === "queued");
+    try {
+      for (const item of toSkip) {
+        await supabase.from("page_queue").update({ status: "skipped", updated_at: new Date().toISOString() }).eq("id", item.id);
+      }
+      toast.success(`Skipped ${toSkip.length} items`);
+      queryClient.invalidateQueries({ queryKey: ["queue"] });
+    } catch {
+      toast.error("Failed to skip items");
+    } finally {
+      setBulkAction(false);
+    }
+  };
+
+  const handleBulkUnskip = async () => {
+    if (!items) return;
+    setBulkAction(true);
+    const batch = batchFilter === "all" ? items : filteredItems;
+    const toUnskip = batch.filter((i) => i.status === "skipped");
+    try {
+      for (const item of toUnskip) {
+        await supabase.from("page_queue").update({ status: "queued", updated_at: new Date().toISOString() }).eq("id", item.id);
+      }
+      toast.success(`Un-skipped ${toUnskip.length} items`);
+      queryClient.invalidateQueries({ queryKey: ["queue"] });
+    } catch {
+      toast.error("Failed to un-skip items");
+    } finally {
+      setBulkAction(false);
+    }
+  };
+
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
-    if (!over || active.id === over.id || !items) return;
+    if (!over || active.id === over.id || !filteredItems) return;
 
-    const oldIndex = items.findIndex((i) => i.id === active.id);
-    const newIndex = items.findIndex((i) => i.id === over.id);
-    const reordered = arrayMove(items, oldIndex, newIndex);
+    const oldIndex = filteredItems.findIndex((i) => i.id === active.id);
+    const newIndex = filteredItems.findIndex((i) => i.id === over.id);
+    const reordered = arrayMove(filteredItems, oldIndex, newIndex);
 
-    // Optimistic update
-    queryClient.setQueryData(["queue"], reordered);
+    queryClient.setQueryData(["queue"], (prev: QueueRow[] | undefined) => {
+      if (!prev) return prev;
+      if (batchFilter === "all") return reordered;
+      // Merge reordered filtered items back into full list
+      const reorderedMap = new Map(reordered.map((item, i) => [item.id, i]));
+      return prev.map((item) => {
+        const newOrder = reorderedMap.get(item.id);
+        return newOrder !== undefined ? { ...item, sort_order: newOrder } : item;
+      });
+    });
 
-    // Persist sort_order
-    const updates = reordered.map((item, i) => ({
-      id: item.id,
-      sort_order: i,
-    }));
-
+    const updates = reordered.map((item, i) => ({ id: item.id, sort_order: i }));
     for (const u of updates) {
       await supabase.from("page_queue").update({ sort_order: u.sort_order }).eq("id", u.id);
     }
   };
 
-  const queuedCount = items?.filter((i) => i.status === "queued").length ?? 0;
-  const hasItems = items && items.length > 0;
+  const hasItems = filteredItems && filteredItems.length > 0;
+  const skippedInView = filteredItems.filter((i) => i.status === "skipped").length;
+  const queuedInView = filteredItems.filter((i) => i.status === "queued").length;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-semibold text-foreground">QA Queue</h1>
-          {queuedCount > 0 && (
-            <Badge variant="secondary">{queuedCount} queued</Badge>
-          )}
-        </div>
+        <h1 className="text-2xl font-semibold text-foreground">QA Queue</h1>
         <Button onClick={() => setModalOpen(true)}>
           <Plus className="h-4 w-4 mr-1" />
           Add to Queue
         </Button>
       </div>
+
+      {/* Metrics */}
+      {items && items.length > 0 && (
+        <div className="grid grid-cols-3 gap-4">
+          <Card>
+            <CardContent className="py-3 px-4">
+              <p className="text-xs text-muted-foreground">Active Items</p>
+              <p className="text-2xl font-semibold text-foreground">{metrics.total}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="py-3 px-4">
+              <p className="text-xs text-muted-foreground">Remaining</p>
+              <p className="text-2xl font-semibold text-foreground">{metrics.remaining}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="py-3 px-4">
+              <p className="text-xs text-muted-foreground">Promoted Today</p>
+              <p className="text-2xl font-semibold text-foreground">{metrics.promotedToday}</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Filters + Bulk Actions */}
+      {items && items.length > 0 && (
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <Select value={batchFilter} onValueChange={setBatchFilter}>
+              <SelectTrigger className="w-[200px] h-8 text-sm">
+                <SelectValue placeholder="Filter by batch" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All batches</SelectItem>
+                <SelectItem value="__none__">No batch</SelectItem>
+                {batchNames.map((name) => (
+                  <SelectItem key={name} value={name}>{name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center gap-1 ml-auto">
+            {queuedInView > 0 && (
+              <Button size="sm" variant="outline" onClick={handleBulkSkip} disabled={bulkAction}>
+                {bulkAction ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <SkipForward className="h-3 w-3 mr-1" />}
+                Skip All ({queuedInView})
+              </Button>
+            )}
+            {skippedInView > 0 && (
+              <Button size="sm" variant="outline" onClick={handleBulkUnskip} disabled={bulkAction}>
+                {bulkAction ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RotateCcw className="h-3 w-3 mr-1" />}
+                Un-skip All ({skippedInView})
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
 
       {isLoading && (
         <div className="flex items-center justify-center py-24">
@@ -253,22 +385,32 @@ export default function QueuePage() {
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted mb-4">
             <ListTodo className="h-7 w-7 text-muted-foreground" />
           </div>
-          <h2 className="text-lg font-medium text-foreground mb-1">Queue is empty</h2>
+          <h2 className="text-lg font-medium text-foreground mb-1">
+            {batchFilter !== "all" ? "No items in this batch" : "Queue is empty"}
+          </h2>
           <p className="text-sm text-muted-foreground mb-4 max-w-sm">
-            Add URLs to get started. You can upload a CSV or paste multiple URLs.
+            {batchFilter !== "all"
+              ? "Try selecting a different batch or clear the filter."
+              : "Add URLs to get started. You can upload a CSV or paste multiple URLs."}
           </p>
-          <Button variant="outline" onClick={() => setModalOpen(true)}>
-            <Plus className="h-4 w-4 mr-1" />
-            Add URLs to queue
-          </Button>
+          {batchFilter !== "all" ? (
+            <Button variant="outline" onClick={() => setBatchFilter("all")}>
+              Clear Filter
+            </Button>
+          ) : (
+            <Button variant="outline" onClick={() => setModalOpen(true)}>
+              <Plus className="h-4 w-4 mr-1" />
+              Add URLs to queue
+            </Button>
+          )}
         </div>
       )}
 
       {!isLoading && hasItems && (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={items!.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+          <SortableContext items={filteredItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
             <div className="space-y-2">
-              {items!.map((item) => (
+              {filteredItems.map((item) => (
                 <SortableQueueRow
                   key={item.id}
                   item={item}
