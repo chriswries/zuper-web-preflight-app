@@ -360,7 +360,7 @@ export function exportPDF(page: PageForExport, latestRuns: Map<number, AgentRunF
         if (check.actual) { drawText(`Actual: ${check.actual}`, ml + 8, cw - 8, 7, "normal", [200, 50, 50]); }
         if (check.element_location) { drawText(`Element: ${check.element_location}`, ml + 8, cw - 8, 7, "italic", [100, 100, 100]); }
         if (check.recommendation) { drawText(`Recommendation: ${check.recommendation}`, ml + 8, cw - 8, 7, "normal", [80, 80, 80]); }
-        y += 2;
+        y += 3;
       }
     } else if (run.status === "skipped" || run.status === "not_started") {
       drawText("No checks run.", ml + 4, cw, 7, "italic", [150, 150, 150]);
