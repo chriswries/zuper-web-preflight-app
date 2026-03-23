@@ -1,9 +1,9 @@
-import { ArrowLeft, Play, RotateCcw, Download, Loader2, ExternalLink, History, FileText, ChevronDown } from "lucide-react";
+import { ArrowLeft, Play, RotateCcw, Download, Loader2, ExternalLink, FileText, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/StatusBadge";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { useNavigate, useParams, useSearchParams, Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,11 +12,11 @@ import { format } from "date-fns";
 import { useState, useMemo, useCallback } from "react";
 import { toast } from "sonner";
 import { PipelineStageBar } from "@/components/pipeline/PipelineStageBar";
-import { AgentReportCard } from "@/components/pipeline/AgentReportCard";
 import { RunPipelineDialog } from "@/components/pipeline/RunPipelineDialog";
 import { GateWarningDialog } from "@/components/pipeline/GateWarningDialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { exportMarkdown, exportPDF } from "@/lib/export-report";
+import { ExpandableAgentRow } from "@/components/pipeline/ExpandableAgentRow";
 
 const stages = [
   { number: 1, name: "Content & Migration", agents: [1, 2, 3, 4] },
@@ -68,8 +68,6 @@ export default function PageDetailPage() {
   const queryClient = useQueryClient();
 
   const [pipelineRunning, setPipelineRunning] = useState(false);
-  const [selectedAgent, setSelectedAgent] = useState<number | null>(null);
-  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [rerunningAgent, setRerunningAgent] = useState<string | null>(null);
 
   // Dialog state
@@ -326,17 +324,6 @@ export default function PageDetailPage() {
     }
   }, [user, id, queryClient]);
 
-  // Selected run for report display
-  const selectedRunData = useMemo(() => {
-    if (!selectedAgent) return null;
-    if (selectedRunId) {
-      return runs?.find((r) => r.id === selectedRunId) ?? null;
-    }
-    return latestRunByAgent.get(selectedAgent) ?? null;
-  }, [selectedAgent, selectedRunId, runs, latestRunByAgent]);
-
-  const selectedReport = selectedRunData?.report as unknown as AgentReport | null;
-  const agentHistory = selectedAgent ? (allRunsByAgent.get(selectedAgent) ?? []) : [];
 
   if (pageLoading) {
     return (
@@ -495,87 +482,22 @@ export default function PageDetailPage() {
                 </div>
 
                 {/* Agent rows */}
-                <div className="space-y-1 ml-10">
+                <div className="space-y-0.5 ml-10">
                   <TooltipProvider>
-                    {stage.agents.map((agentNum) => {
-                      const run = latestRunByAgent.get(agentNum);
-                      const agentName = run?.agents?.name || `Agent ${agentNum}`;
-                      const hasReport = !!run?.report;
-                      const isSkipped = run?.status === "skipped";
-                      const agentId = run?.agents?.id;
-                      const canRerun = run && !isSkipped && !isPipelineActive && !pipelineRunning &&
-                        (run.status === "passed" || run.status === "failed" || run.status === "error" || run.status === "warning");
-                      const historyCount = allRunsByAgent.get(agentNum)?.length ?? 0;
-
-                      const row = (
-                        <div
-                          key={agentNum}
-                          className={`flex items-center gap-2 py-1.5 px-2 rounded text-sm ${
-                            isSkipped ? "opacity-50" : ""
-                          } ${hasReport ? "hover:bg-accent/50 cursor-pointer" : ""} ${
-                            selectedAgent === agentNum ? "bg-accent" : ""
-                          }`}
-                          onClick={() => {
-                            if (hasReport && agentId) {
-                              navigate(`/pages/${id}/agents/${agentId}`);
-                            } else if (run) {
-                              setSelectedAgent(selectedAgent === agentNum ? null : agentNum);
-                              setSelectedRunId(null);
-                            }
-                          }}
-                        >
-                          <span className="text-muted-foreground text-xs w-5 text-right">
-                            {agentNum}
-                          </span>
-                          <span className={`flex-1 ${isSkipped ? "text-muted-foreground" : "text-foreground"}`}>
-                            {agentName}
-                          </span>
-                          {historyCount > 1 && (
-                            <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
-                              <History className="h-3 w-3" />
-                              {historyCount}
-                            </span>
-                          )}
-                          {run && (
-                            <StatusBadge status={run.status as any} className="text-[10px] h-5" />
-                          )}
-                          {run?.duration_ms && (
-                            <span className="text-xs text-muted-foreground">
-                              {(run.duration_ms / 1000).toFixed(1)}s
-                            </span>
-                          )}
-                          {canRerun && agentId && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-5 w-5 p-0"
-                              disabled={rerunningAgent === agentId}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                rerunSingleAgent(agentId, agentNum);
-                              }}
-                            >
-                              {rerunningAgent === agentId ? (
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                              ) : (
-                                <RotateCcw className="h-3 w-3" />
-                              )}
-                            </Button>
-                          )}
-                        </div>
-                      );
-
-                      if (isSkipped && page.mode === "ongoing") {
-                        return (
-                          <Tooltip key={agentNum}>
-                            <TooltipTrigger asChild>{row}</TooltipTrigger>
-                            <TooltipContent>Skipped — ongoing mode</TooltipContent>
-                          </Tooltip>
-                        );
-                      }
-
-                      return row;
-                    })}
+                    {stage.agents.map((agentNum) => (
+                      <ExpandableAgentRow
+                        key={agentNum}
+                        agentNum={agentNum}
+                        latestRun={latestRunByAgent.get(agentNum)}
+                        allRuns={allRunsByAgent.get(agentNum) ?? []}
+                        pageId={id!}
+                        pageMode={page.mode}
+                        isPipelineActive={isPipelineActive}
+                        pipelineRunning={pipelineRunning}
+                        rerunningAgent={rerunningAgent}
+                        onRerun={rerunSingleAgent}
+                      />
+                    ))}
                   </TooltipProvider>
                 </div>
               </CardContent>
@@ -584,73 +506,6 @@ export default function PageDetailPage() {
         </div>
       </div>
 
-      {/* Report display with run history */}
-      {selectedAgent && (
-        <div className="grid gap-4 lg:grid-cols-[1fr_240px]">
-          <div>
-            {selectedReport ? (
-              <AgentReportCard
-                report={selectedReport}
-                summaryStats={selectedRunData?.summary_stats as Record<string, number> | undefined}
-              />
-            ) : selectedRunData?.error_message ? (
-              <Card>
-                <CardContent className="py-4">
-                  <p className="text-sm text-destructive">
-                    Error: {selectedRunData.error_message}
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card>
-                <CardContent className="py-4">
-                  <p className="text-sm text-muted-foreground">No report available for this run.</p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          {/* Run history sidebar */}
-          {agentHistory.length > 1 && (
-            <Card>
-              <CardContent className="py-3 px-3">
-                <h3 className="text-sm font-medium text-foreground mb-2 flex items-center gap-1">
-                  <History className="h-4 w-4" />
-                  Run History
-                </h3>
-                <div className="space-y-1">
-                  {agentHistory.map((run) => (
-                    <button
-                      key={run.id}
-                      className={`w-full text-left px-2 py-1.5 rounded text-xs transition-colors ${
-                        (selectedRunId === run.id || (!selectedRunId && run.id === agentHistory[0]?.id))
-                          ? "bg-accent"
-                          : "hover:bg-accent/50"
-                      }`}
-                      onClick={() => setSelectedRunId(run.id)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Run #{run.run_number}</span>
-                        <StatusBadge status={run.status as any} className="text-[9px] h-4 px-1.5" />
-                      </div>
-                      {run.completed_at && (
-                        <p className="text-muted-foreground mt-0.5">
-                          {format(new Date(run.completed_at), "MMM d, h:mm a")}
-                        </p>
-                      )}
-                      {run.duration_ms && (
-                        <p className="text-muted-foreground">
-                          {(run.duration_ms / 1000).toFixed(1)}s
-                        </p>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      )}
 
       {/* Dialogs */}
       <RunPipelineDialog
