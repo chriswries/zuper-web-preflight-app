@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 
 export async function logAudit(params: {
   action_type: string;
@@ -16,8 +17,8 @@ export async function logAudit(params: {
     action_type: params.action_type,
     entity_type: params.entity_type,
     entity_id: params.entity_id,
-    before_state: params.before_state ?? null,
-    after_state: params.after_state ?? null,
-    details: params.details ?? null,
+    before_state: (params.before_state ?? null) as Json,
+    after_state: (params.after_state ?? null) as Json,
+    details: (params.details ?? null) as Json,
   }]);
 }
