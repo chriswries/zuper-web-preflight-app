@@ -1,4 +1,4 @@
-import { ArrowLeft, Play, RotateCcw, Download, Loader2, ExternalLink } from "lucide-react";
+import { ArrowLeft, Play, RotateCcw, Download, Loader2, ExternalLink, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +9,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { toast } from "sonner";
 import { PipelineStageBar } from "@/components/pipeline/PipelineStageBar";
 import { AgentReportCard } from "@/components/pipeline/AgentReportCard";
@@ -41,6 +41,23 @@ interface AgentReport {
 
 type RunScope = "all" | "stage" | "failed";
 
+type AgentRunRow = {
+  id: string;
+  page_id: string;
+  agent_id: string;
+  run_number: number;
+  status: string;
+  report: unknown;
+  summary_stats: unknown;
+  duration_ms: number | null;
+  error_message: string | null;
+  created_at: string;
+  completed_at: string | null;
+  started_at: string | null;
+  model_used: string | null;
+  agents: { id: string; agent_number: number; name: string; is_blocking: boolean } | null;
+};
+
 export default function PageDetailPage() {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -49,6 +66,8 @@ export default function PageDetailPage() {
 
   const [pipelineRunning, setPipelineRunning] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<number | null>(null);
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  const [rerunningAgent, setRerunningAgent] = useState<string | null>(null);
 
   // Dialog state
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -81,7 +100,7 @@ export default function PageDetailPage() {
     enabled: !!id,
   });
 
-  // Load agents (to get counts for cost estimate)
+  // Load agents
   const { data: allAgents } = useQuery({
     queryKey: ["agents-active"],
     queryFn: async () => {
@@ -96,7 +115,7 @@ export default function PageDetailPage() {
     },
   });
 
-  // Load agent runs for this page
+  // Load ALL agent runs for this page (not just latest)
   const { data: runs } = useQuery({
     queryKey: ["agent-runs", id],
     queryFn: async () => {
@@ -104,20 +123,36 @@ export default function PageDetailPage() {
         .from("agent_runs")
         .select("*, agents!agent_runs_agent_id_fkey(id, agent_number, name, is_blocking)")
         .eq("page_id", id!)
-        .order("created_at");
+        .order("run_number", { ascending: false });
       if (error) throw error;
-      return data;
+      return data as unknown as AgentRunRow[];
     },
     enabled: !!id,
     refetchInterval: pipelineRunning ? 2000 : false,
   });
 
-  // Map agent_number → run
-  const runsByAgentNumber = useMemo(() => {
-    const map = new Map<number, NonNullable<typeof runs>[number]>();
+  // Latest run per agent_number (for main display + status)
+  const latestRunByAgent = useMemo(() => {
+    const map = new Map<number, AgentRunRow>();
     runs?.forEach((r) => {
-      const agentNum = (r.agents as unknown as { agent_number: number })?.agent_number;
-      if (agentNum) map.set(agentNum, r);
+      const agentNum = r.agents?.agent_number;
+      if (agentNum && !map.has(agentNum)) {
+        map.set(agentNum, r); // First entry is latest (ordered desc)
+      }
+    });
+    return map;
+  }, [runs]);
+
+  // All runs grouped by agent_number (for history)
+  const allRunsByAgent = useMemo(() => {
+    const map = new Map<number, AgentRunRow[]>();
+    runs?.forEach((r) => {
+      const agentNum = r.agents?.agent_number;
+      if (agentNum) {
+        const arr = map.get(agentNum) || [];
+        arr.push(r);
+        map.set(agentNum, arr);
+      }
     });
     return map;
   }, [runs]);
@@ -125,7 +160,7 @@ export default function PageDetailPage() {
   // Compute stage info for bar
   const stageInfos = useMemo(() => {
     return stages.map((stage) => {
-      const stageRuns = stage.agents.map((n) => runsByAgentNumber.get(n)).filter(Boolean);
+      const stageRuns = stage.agents.map((n) => latestRunByAgent.get(n)).filter(Boolean);
       const nonSkippedRuns = stageRuns.filter((r) => r?.status !== "skipped");
       return {
         number: stage.number,
@@ -137,17 +172,20 @@ export default function PageDetailPage() {
         hasRuns: nonSkippedRuns.length > 0,
       };
     });
-  }, [runsByAgentNumber]);
+  }, [latestRunByAgent]);
 
   const isPipelineActive = useMemo(() => {
     return runs?.some((r) => r.status === "running" || r.status === "queued") ?? false;
   }, [runs]);
 
   const failedCount = useMemo(() => {
-    return runs?.filter((r) => r.status === "failed" || r.status === "error").length ?? 0;
-  }, [runs]);
+    let count = 0;
+    latestRunByAgent.forEach((run) => {
+      if (run.status === "failed" || run.status === "error") count++;
+    });
+    return count;
+  }, [latestRunByAgent]);
 
-  // Agent/browserless counts for cost estimate
   const getAgentCounts = (scope: RunScope, stageNumber?: number) => {
     if (!allAgents || !page) return { agentCount: 0, browserlessCount: 0 };
     let filtered = allAgents.filter((a) => !(a.migration_only && page.mode === "ongoing"));
@@ -155,10 +193,13 @@ export default function PageDetailPage() {
     if (scope === "stage" && stageNumber) {
       filtered = filtered.filter((a) => a.stage_number === stageNumber);
     } else if (scope === "failed") {
-      const failedIds = new Set(
-        runs?.filter((r) => r.status === "failed" || r.status === "error").map((r) => (r.agents as unknown as { id: string })?.id)
-      );
-      filtered = filtered.filter((a) => failedIds.has(a.id));
+      const failedAgentIds = new Set<string>();
+      latestRunByAgent.forEach((run) => {
+        if ((run.status === "failed" || run.status === "error") && run.agents?.id) {
+          failedAgentIds.add(run.agents.id);
+        }
+      });
+      filtered = filtered.filter((a) => failedAgentIds.has(a.id));
     }
 
     return {
@@ -212,7 +253,6 @@ export default function PageDetailPage() {
         return;
       }
 
-      // Check for gate warnings
       if (result.gate_warnings?.length > 0) {
         setGateDialog({
           open: true,
@@ -242,8 +282,60 @@ export default function PageDetailPage() {
     }
   };
 
-  const selectedRun = selectedAgent ? runsByAgentNumber.get(selectedAgent) : null;
-  const selectedReport = selectedRun?.report as unknown as AgentReport | null;
+  const rerunSingleAgent = useCallback(async (agentId: string, agentNumber: number) => {
+    if (!user || !id) return;
+    setRerunningAgent(agentId);
+    setPipelineRunning(true);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Not authenticated");
+
+      // Mark page in_progress
+      await supabase
+        .from("pages")
+        .update({ status: "in_progress", updated_at: new Date().toISOString() })
+        .eq("id", id);
+
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/run-agent`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ page_id: id, agent_id: agentId }),
+        }
+      );
+
+      const result = await res.json();
+      if (!res.ok) {
+        toast.error(result.error || `Agent ${agentNumber} failed`);
+      } else {
+        toast.success(`Agent ${agentNumber} completed: ${result.status}`);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Re-run failed");
+    } finally {
+      setRerunningAgent(null);
+      setPipelineRunning(false);
+      queryClient.invalidateQueries({ queryKey: ["agent-runs", id] });
+      queryClient.invalidateQueries({ queryKey: ["page", id] });
+    }
+  }, [user, id, queryClient]);
+
+  // Selected run for report display
+  const selectedRunData = useMemo(() => {
+    if (!selectedAgent) return null;
+    if (selectedRunId) {
+      return runs?.find((r) => r.id === selectedRunId) ?? null;
+    }
+    return latestRunByAgent.get(selectedAgent) ?? null;
+  }, [selectedAgent, selectedRunId, runs, latestRunByAgent]);
+
+  const selectedReport = selectedRunData?.report as unknown as AgentReport | null;
+  const agentHistory = selectedAgent ? (allRunsByAgent.get(selectedAgent) ?? []) : [];
 
   if (pageLoading) {
     return (
@@ -337,43 +429,43 @@ export default function PageDetailPage() {
 
         {/* Stage cards */}
         <div className="grid gap-4">
-          {stages.map((stage) => {
-            const info = stageInfos.find((s) => s.number === stage.number)!;
-
-            return (
-              <Card key={stage.number}>
-                <CardContent className="py-4 px-5 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
-                        {stage.number}
-                      </span>
-                      <span className="font-medium text-foreground">{stage.name}</span>
-                      <span className="text-sm text-muted-foreground">
-                        {stage.agents.length} agent{stage.agents.length > 1 ? "s" : ""}
-                      </span>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 text-xs"
-                      onClick={() => openRunDialog("stage", stage.number, stage.name)}
-                      disabled={isPipelineActive || pipelineRunning}
-                    >
-                      <Play className="h-3 w-3 mr-1" />
-                      Run Stage
-                    </Button>
+          {stages.map((stage) => (
+            <Card key={stage.number}>
+              <CardContent className="py-4 px-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
+                      {stage.number}
+                    </span>
+                    <span className="font-medium text-foreground">{stage.name}</span>
+                    <span className="text-sm text-muted-foreground">
+                      {stage.agents.length} agent{stage.agents.length > 1 ? "s" : ""}
+                    </span>
                   </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs"
+                    onClick={() => openRunDialog("stage", stage.number, stage.name)}
+                    disabled={isPipelineActive || pipelineRunning}
+                  >
+                    <Play className="h-3 w-3 mr-1" />
+                    Run Stage
+                  </Button>
+                </div>
 
-                  {/* Agent rows */}
-                  <div className="space-y-1 ml-10">
-                    <TooltipProvider>
+                {/* Agent rows */}
+                <div className="space-y-1 ml-10">
+                  <TooltipProvider>
                     {stage.agents.map((agentNum) => {
-                      const run = runsByAgentNumber.get(agentNum);
-                      const agentName =
-                        (run?.agents as unknown as { name: string })?.name || `Agent ${agentNum}`;
+                      const run = latestRunByAgent.get(agentNum);
+                      const agentName = run?.agents?.name || `Agent ${agentNum}`;
                       const hasReport = !!run?.report;
                       const isSkipped = run?.status === "skipped";
+                      const agentId = run?.agents?.id;
+                      const canRerun = run && !isSkipped && !isPipelineActive && !pipelineRunning &&
+                        (run.status === "passed" || run.status === "failed" || run.status === "error" || run.status === "warning");
+                      const historyCount = allRunsByAgent.get(agentNum)?.length ?? 0;
 
                       const row = (
                         <div
@@ -383,10 +475,12 @@ export default function PageDetailPage() {
                           } ${hasReport ? "hover:bg-accent/50 cursor-pointer" : ""} ${
                             selectedAgent === agentNum ? "bg-accent" : ""
                           }`}
-                          onClick={() =>
-                            hasReport &&
-                            setSelectedAgent(selectedAgent === agentNum ? null : agentNum)
-                          }
+                          onClick={() => {
+                            if (hasReport || run) {
+                              setSelectedAgent(selectedAgent === agentNum ? null : agentNum);
+                              setSelectedRunId(null);
+                            }
+                          }}
                         >
                           <span className="text-muted-foreground text-xs w-5 text-right">
                             {agentNum}
@@ -394,13 +488,37 @@ export default function PageDetailPage() {
                           <span className={`flex-1 ${isSkipped ? "text-muted-foreground" : "text-foreground"}`}>
                             {agentName}
                           </span>
+                          {historyCount > 1 && (
+                            <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                              <History className="h-3 w-3" />
+                              {historyCount}
+                            </span>
+                          )}
                           {run && (
-                            <StatusBadge status={run.status} className="text-[10px] h-5" />
+                            <StatusBadge status={run.status as any} className="text-[10px] h-5" />
                           )}
                           {run?.duration_ms && (
                             <span className="text-xs text-muted-foreground">
                               {(run.duration_ms / 1000).toFixed(1)}s
                             </span>
+                          )}
+                          {canRerun && agentId && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-5 w-5 p-0"
+                              disabled={rerunningAgent === agentId}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                rerunSingleAgent(agentId, agentNum);
+                              }}
+                            >
+                              {rerunningAgent === agentId ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <RotateCcw className="h-3 w-3" />
+                              )}
+                            </Button>
                           )}
                         </div>
                       );
@@ -416,21 +534,80 @@ export default function PageDetailPage() {
 
                       return row;
                     })}
-                    </TooltipProvider>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+                  </TooltipProvider>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </div>
 
-      {/* Report display */}
-      {selectedReport && (
-        <AgentReportCard
-          report={selectedReport}
-          summaryStats={selectedRun?.summary_stats as Record<string, number> | undefined}
-        />
+      {/* Report display with run history */}
+      {selectedAgent && (
+        <div className="grid gap-4 lg:grid-cols-[1fr_240px]">
+          <div>
+            {selectedReport ? (
+              <AgentReportCard
+                report={selectedReport}
+                summaryStats={selectedRunData?.summary_stats as Record<string, number> | undefined}
+              />
+            ) : selectedRunData?.error_message ? (
+              <Card>
+                <CardContent className="py-4">
+                  <p className="text-sm text-destructive">
+                    Error: {selectedRunData.error_message}
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="py-4">
+                  <p className="text-sm text-muted-foreground">No report available for this run.</p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {/* Run history sidebar */}
+          {agentHistory.length > 1 && (
+            <Card>
+              <CardContent className="py-3 px-3">
+                <h3 className="text-sm font-medium text-foreground mb-2 flex items-center gap-1">
+                  <History className="h-4 w-4" />
+                  Run History
+                </h3>
+                <div className="space-y-1">
+                  {agentHistory.map((run) => (
+                    <button
+                      key={run.id}
+                      className={`w-full text-left px-2 py-1.5 rounded text-xs transition-colors ${
+                        (selectedRunId === run.id || (!selectedRunId && run.id === agentHistory[0]?.id))
+                          ? "bg-accent"
+                          : "hover:bg-accent/50"
+                      }`}
+                      onClick={() => setSelectedRunId(run.id)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Run #{run.run_number}</span>
+                        <StatusBadge status={run.status as any} className="text-[9px] h-4 px-1.5" />
+                      </div>
+                      {run.completed_at && (
+                        <p className="text-muted-foreground mt-0.5">
+                          {format(new Date(run.completed_at), "MMM d, h:mm a")}
+                        </p>
+                      )}
+                      {run.duration_ms && (
+                        <p className="text-muted-foreground">
+                          {(run.duration_ms / 1000).toFixed(1)}s
+                        </p>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       )}
 
       {/* Dialogs */}
