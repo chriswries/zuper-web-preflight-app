@@ -249,7 +249,8 @@ export function exportPDF(page: PageForExport, latestRuns: Map<number, AgentRunF
   const sortedEntries = Array.from(latestRuns.entries()).sort((a, b) => a[0] - b[0]);
 
   // Table header
-  const cols = [ml, ml + 10, ml + 60, ml + 90, ml + 108, ml + 126, ml + 144];
+  const cols = [ml, ml + 10, ml + 65, ml + 92, ml + 110, ml + 128, ml + 146];
+  const rowHeight = 5;
   doc.setFontSize(7);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(100);
@@ -260,20 +261,28 @@ export function exportPDF(page: PageForExport, latestRuns: Map<number, AgentRunF
   doc.text("Failed", cols[4], y);
   doc.text("Warnings", cols[5], y);
   doc.text("Skipped", cols[6], y);
-  y += 4;
+  y += 2;
   doc.setDrawColor(220);
-  doc.line(ml, y - 1, pw - mr, y - 1);
+  doc.line(ml, y, pw - mr, y);
+  y += 4;
 
   doc.setFont("helvetica", "normal");
   doc.setTextColor(45, 30, 14);
 
-  for (const [agentNum, run] of sortedEntries) {
-    checkPage(5);
+  sortedEntries.forEach(([agentNum, run], rowIndex) => {
+    checkPage(rowHeight + 1);
     const name = run.agents?.name || `Agent ${agentNum}`;
     const stats = run.summary_stats as Record<string, number> | null;
+
+    // Alternating row shading
+    if (rowIndex % 2 === 0) {
+      doc.setFillColor(248, 248, 248);
+      doc.rect(ml, y - 3.5, cw, rowHeight, "F");
+    }
+
     doc.setFontSize(7);
     doc.text(String(agentNum), cols[0], y);
-    doc.text(name.substring(0, 28), cols[1], y);
+    doc.text(name, cols[1], y);
 
     // Color-code status
     const statusColor: [number, number, number] =
@@ -288,8 +297,8 @@ export function exportPDF(page: PageForExport, latestRuns: Map<number, AgentRunF
     doc.text(String(stats?.failed ?? "—"), cols[4], y);
     doc.text(String(stats?.warnings ?? "—"), cols[5], y);
     doc.text(String(stats?.skipped ?? "—"), cols[6], y);
-    y += 4;
-  }
+    y += rowHeight;
+  });
 
   y += 6;
   doc.setDrawColor(230);
@@ -302,7 +311,7 @@ export function exportPDF(page: PageForExport, latestRuns: Map<number, AgentRunF
 
   for (const [agentNum, run] of sortedEntries) {
     const name = run.agents?.name || `Agent ${agentNum}`;
-    checkPage(14);
+    checkPage(30);
 
     drawText(`${agentNum}. ${name}`, ml, cw, 10, "bold");
 
@@ -314,12 +323,12 @@ export function exportPDF(page: PageForExport, latestRuns: Map<number, AgentRunF
 
     const disclaimer = SCOPE_DISCLAIMERS[agentNum];
     if (disclaimer) {
-      drawText(`⚠ ${disclaimer}`, ml, cw, 7, "italic", [180, 130, 40]);
+      drawText(`[!] ${disclaimer}`, ml, cw, 7, "italic", [180, 130, 40]);
       y += 1;
     }
 
     if (LOWER_CONFIDENCE_AGENTS.includes(agentNum)) {
-      drawText(`👁 Review recommended — this agent uses AI judgment.`, ml, cw, 7, "italic", [180, 130, 40]);
+      drawText(`[Review] Review recommended -- this agent uses AI judgment.`, ml, cw, 7, "italic", [180, 130, 40]);
       y += 1;
     }
 
@@ -327,7 +336,7 @@ export function exportPDF(page: PageForExport, latestRuns: Map<number, AgentRunF
     if (report?.checks && report.checks.length > 0) {
       for (const check of report.checks) {
         checkPage(12);
-        const icon = check.status === "passed" ? "✓" : check.status === "failed" ? "✗" : check.status === "warning" ? "!" : "—";
+        const icon = check.status === "passed" ? "PASS" : check.status === "failed" ? "FAIL" : check.status === "warning" ? "WARN" : "--";
         const checkColor: [number, number, number] =
           check.status === "passed" ? [34, 197, 94] :
           check.status === "failed" ? [239, 68, 68] :
@@ -351,7 +360,7 @@ export function exportPDF(page: PageForExport, latestRuns: Map<number, AgentRunF
         if (check.actual) { drawText(`Actual: ${check.actual}`, ml + 8, cw - 8, 7, "normal", [200, 50, 50]); }
         if (check.element_location) { drawText(`Element: ${check.element_location}`, ml + 8, cw - 8, 7, "italic", [100, 100, 100]); }
         if (check.recommendation) { drawText(`Recommendation: ${check.recommendation}`, ml + 8, cw - 8, 7, "normal", [80, 80, 80]); }
-        y += 2;
+        y += 3;
       }
     } else if (run.status === "skipped" || run.status === "not_started") {
       drawText("No checks run.", ml + 4, cw, 7, "italic", [150, 150, 150]);
