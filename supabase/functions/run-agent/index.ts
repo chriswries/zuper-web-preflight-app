@@ -317,19 +317,58 @@ Deno.serve(async (req) => {
     }
 
     // 3. Find or create agent_run
-    const { data: existingRun } = await supabase
+    // Look for a pre-created "queued" run (from pipeline), otherwise create a new one
+    let runId: string | undefined;
+
+    const { data: queuedRun } = await supabase
       .from("agent_runs")
       .select("id")
       .eq("page_id", page_id)
       .eq("agent_id", agent_id)
+      .eq("status", "queued")
       .order("run_number", { ascending: false })
       .limit(1)
       .single();
 
-    const runId = existingRun?.id;
+    if (queuedRun) {
+      runId = queuedRun.id;
+    } else {
+      // Find max run_number for this page+agent
+      const { data: latestRun } = await supabase
+        .from("agent_runs")
+        .select("run_number")
+        .eq("page_id", page_id)
+        .eq("agent_id", agent_id)
+        .order("run_number", { ascending: false })
+        .limit(1)
+        .single();
+
+      const nextRunNumber = (latestRun?.run_number ?? 0) + 1;
+
+      // Create new run row
+      const { data: newRun, error: newRunErr } = await supabase
+        .from("agent_runs")
+        .insert({
+          page_id,
+          agent_id,
+          run_number: nextRunNumber,
+          status: "running",
+          started_at: new Date().toISOString(),
+        })
+        .select("id")
+        .single();
+
+      if (newRunErr || !newRun) {
+        return new Response(
+          JSON.stringify({ error: "Failed to create agent run" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      runId = newRun.id;
+    }
 
     // Mark as running
-    if (runId) {
+    if (runId && queuedRun) {
       await supabase
         .from("agent_runs")
         .update({

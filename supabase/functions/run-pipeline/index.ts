@@ -99,14 +99,20 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Load existing runs
-    const { data: existingRuns } = await supabase
+    // Load existing runs (latest per agent)
+    const { data: allRuns } = await supabase
       .from("agent_runs")
-      .select("id, agent_id, status")
-      .eq("page_id", page_id);
+      .select("id, agent_id, status, run_number")
+      .eq("page_id", page_id)
+      .order("run_number", { ascending: false });
 
-    const runsByAgentId = new Map<string, { id: string; status: string }>();
-    existingRuns?.forEach((r) => runsByAgentId.set(r.agent_id, r));
+    // Build map of latest run per agent_id
+    const runsByAgentId = new Map<string, { id: string; status: string; run_number: number }>();
+    allRuns?.forEach((r) => {
+      if (!runsByAgentId.has(r.agent_id)) {
+        runsByAgentId.set(r.agent_id, r);
+      }
+    });
 
     // Filter agents based on scope
     let agentsToRun = agents.filter((a) => {
@@ -143,10 +149,30 @@ Deno.serve(async (req) => {
       .update({ status: "in_progress", updated_at: new Date().toISOString() })
       .eq("id", page_id);
 
-    // Mark all agents-to-run as queued
+    // Create new agent_run rows for re-runs (failed scope), or update existing for all/stage
+    const newRunIds = new Map<string, string>(); // agent_id → new run id
     for (const agent of agentsToRun) {
       const existing = runsByAgentId.get(agent.id);
-      if (existing) {
+
+      if (scope === "failed" && existing) {
+        // Create a NEW run row with incremented run_number
+        const nextRunNumber = (existing.run_number ?? 1) + 1;
+        const { data: newRun } = await supabase
+          .from("agent_runs")
+          .insert({
+            page_id,
+            agent_id: agent.id,
+            run_number: nextRunNumber,
+            status: "queued",
+          })
+          .select("id")
+          .single();
+        if (newRun) {
+          newRunIds.set(agent.id, newRun.id);
+          // Update our tracking map to point to the new run
+          runsByAgentId.set(agent.id, { id: newRun.id, status: "queued", run_number: nextRunNumber });
+        }
+      } else if (existing) {
         await supabase
           .from("agent_runs")
           .update({ status: "queued", error_message: null })
