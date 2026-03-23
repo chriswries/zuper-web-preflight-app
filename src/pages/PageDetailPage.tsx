@@ -1,4 +1,4 @@
-import { ArrowLeft, Play, RotateCcw, Download, Loader2, ExternalLink, History, FileText } from "lucide-react";
+import { ArrowLeft, Play, RotateCcw, Download, Loader2, ExternalLink, History, FileText, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,8 @@ import { PipelineStageBar } from "@/components/pipeline/PipelineStageBar";
 import { AgentReportCard } from "@/components/pipeline/AgentReportCard";
 import { RunPipelineDialog } from "@/components/pipeline/RunPipelineDialog";
 import { GateWarningDialog } from "@/components/pipeline/GateWarningDialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { exportMarkdown, exportPDF } from "@/lib/export-report";
 
 const stages = [
   { number: 1, name: "Content & Migration", agents: [1, 2, 3, 4] },
@@ -425,10 +427,39 @@ export default function PageDetailPage() {
           <RotateCcw className="h-4 w-4 mr-1" />
           Re-Run Failed {failedCount > 0 && `(${failedCount})`}
         </Button>
-        <Button variant="outline" disabled>
-          <Download className="h-4 w-4 mr-1" />
-          Export
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline">
+              <Download className="h-4 w-4 mr-1" />
+              Export
+              <ChevronDown className="h-3 w-3 ml-1" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => {
+              if (page && latestRunByAgent.size > 0) {
+                exportMarkdown(page, latestRunByAgent as any);
+                toast.success("Markdown report downloaded");
+              } else {
+                toast.error("No agent runs to export");
+              }
+            }}>
+              <FileText className="h-4 w-4 mr-2" />
+              Markdown (.md)
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => {
+              if (page && latestRunByAgent.size > 0) {
+                exportPDF(page, latestRunByAgent as any);
+                toast.success("PDF report downloaded");
+              } else {
+                toast.error("No agent runs to export");
+              }
+            }}>
+              <Download className="h-4 w-4 mr-2" />
+              PDF (.pdf)
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Pipeline visualization */}
