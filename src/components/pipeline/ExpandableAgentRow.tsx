@@ -153,26 +153,32 @@ export function ExpandableAgentRow({
         )}
       </div>
 
-      {/* Expanded inline report */}
-      {expanded && displayRun && (
-        <div className="ml-6 mr-2 mt-1 mb-3 p-3 rounded-md bg-accent/20 border border-border/50">
-          <AgentReportContent
-            run={displayRun}
-            agentNumber={agentNum}
-            confidenceTier={agentMeta?.confidence_tier}
-            allRuns={detailedRuns}
-            compact
-          />
-        </div>
-      )}
+      {/* Expanded inline report with animation */}
+      <div
+        className={`overflow-hidden transition-all duration-200 ease-out ${
+          expanded ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"
+        }`}
+      >
+        {(expanded || hasFetched) && displayRun && (
+          <div className="ml-6 mr-2 mt-1 mb-3 p-3 rounded-md bg-accent/20 border border-border/50 animate-fade-in">
+            <AgentReportContent
+              run={displayRun}
+              agentNumber={agentNum}
+              confidenceTier={agentMeta?.confidence_tier}
+              allRuns={detailedRuns}
+              compact
+            />
+          </div>
+        )}
 
-      {expanded && !displayRun && !isSkipped && (
-        <div className="ml-6 mr-2 mt-1 mb-3 p-3 rounded-md bg-accent/20 border border-border/50">
-          <p className="text-sm text-muted-foreground text-center py-3">
-            No runs yet. Run this agent to see results.
-          </p>
-        </div>
-      )}
+        {expanded && !displayRun && !isSkipped && (
+          <div className="ml-6 mr-2 mt-1 mb-3 p-3 rounded-md bg-accent/20 border border-border/50 animate-fade-in">
+            <p className="text-sm text-muted-foreground text-center py-3">
+              No runs yet. Run this agent to see results.
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
