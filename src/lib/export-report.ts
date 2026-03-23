@@ -311,7 +311,7 @@ export function exportPDF(page: PageForExport, latestRuns: Map<number, AgentRunF
 
   for (const [agentNum, run] of sortedEntries) {
     const name = run.agents?.name || `Agent ${agentNum}`;
-    checkPage(14);
+    checkPage(30);
 
     drawText(`${agentNum}. ${name}`, ml, cw, 10, "bold");
 
