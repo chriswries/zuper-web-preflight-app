@@ -63,6 +63,7 @@ type AgentRunRow = {
 export default function PageDetailPage() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
