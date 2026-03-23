@@ -126,14 +126,15 @@ export default function PageDetailPage() {
   const stageInfos = useMemo(() => {
     return stages.map((stage) => {
       const stageRuns = stage.agents.map((n) => runsByAgentNumber.get(n)).filter(Boolean);
+      const nonSkippedRuns = stageRuns.filter((r) => r?.status !== "skipped");
       return {
         number: stage.number,
         name: stage.name,
-        allPassed: stageRuns.length > 0 && stageRuns.every((r) => r?.status === "passed" || r?.status === "warning"),
-        anyFailed: stageRuns.some((r) => r?.status === "failed" || r?.status === "error"),
-        anyRunning: stageRuns.some((r) => r?.status === "running"),
-        anyQueued: stageRuns.some((r) => r?.status === "queued"),
-        hasRuns: stageRuns.length > 0,
+        allPassed: nonSkippedRuns.length > 0 && nonSkippedRuns.every((r) => r?.status === "passed" || r?.status === "warning"),
+        anyFailed: nonSkippedRuns.some((r) => r?.status === "failed" || r?.status === "error"),
+        anyRunning: nonSkippedRuns.some((r) => r?.status === "running"),
+        anyQueued: nonSkippedRuns.some((r) => r?.status === "queued"),
+        hasRuns: nonSkippedRuns.length > 0,
       };
     });
   }, [runsByAgentNumber]);
