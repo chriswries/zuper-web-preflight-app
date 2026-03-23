@@ -1,4 +1,4 @@
-import { ArrowLeft, Play, RotateCcw, Download, Loader2, ExternalLink, History } from "lucide-react";
+import { ArrowLeft, Play, RotateCcw, Download, Loader2, ExternalLink, History, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
