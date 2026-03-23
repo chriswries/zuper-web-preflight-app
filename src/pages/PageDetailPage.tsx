@@ -356,8 +356,19 @@ export default function PageDetailPage() {
     confirmDialog.stageNumber
   );
 
+  const [searchParams] = useSearchParams();
+  const fromQueue = searchParams.get("from") === "queue";
+
   return (
     <div className="space-y-6">
+      {/* Breadcrumb from queue */}
+      {fromQueue && (
+        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+          <Link to="/queue" className="hover:text-foreground transition-colors">QA Queue</Link>
+          <span>/</span>
+          <span className="text-foreground">{page.slug || "Page Detail"}</span>
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => navigate("/pages")}>
