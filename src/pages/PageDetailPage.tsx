@@ -367,18 +367,22 @@ export default function PageDetailPage() {
 
                   {/* Agent rows */}
                   <div className="space-y-1 ml-10">
+                    <TooltipProvider>
                     {stage.agents.map((agentNum) => {
                       const run = runsByAgentNumber.get(agentNum);
                       const agentName =
                         (run?.agents as unknown as { name: string })?.name || `Agent ${agentNum}`;
                       const hasReport = !!run?.report;
+                      const isSkipped = run?.status === "skipped";
 
-                      return (
+                      const row = (
                         <div
                           key={agentNum}
                           className={`flex items-center gap-2 py-1.5 px-2 rounded text-sm ${
-                            hasReport ? "hover:bg-accent/50 cursor-pointer" : ""
-                          } ${selectedAgent === agentNum ? "bg-accent" : ""}`}
+                            isSkipped ? "opacity-50" : ""
+                          } ${hasReport ? "hover:bg-accent/50 cursor-pointer" : ""} ${
+                            selectedAgent === agentNum ? "bg-accent" : ""
+                          }`}
                           onClick={() =>
                             hasReport &&
                             setSelectedAgent(selectedAgent === agentNum ? null : agentNum)
@@ -387,7 +391,9 @@ export default function PageDetailPage() {
                           <span className="text-muted-foreground text-xs w-5 text-right">
                             {agentNum}
                           </span>
-                          <span className="flex-1 text-foreground">{agentName}</span>
+                          <span className={`flex-1 ${isSkipped ? "text-muted-foreground" : "text-foreground"}`}>
+                            {agentName}
+                          </span>
                           {run && (
                             <StatusBadge status={run.status} className="text-[10px] h-5" />
                           )}
@@ -398,7 +404,19 @@ export default function PageDetailPage() {
                           )}
                         </div>
                       );
+
+                      if (isSkipped && page.mode === "ongoing") {
+                        return (
+                          <Tooltip key={agentNum}>
+                            <TooltipTrigger asChild>{row}</TooltipTrigger>
+                            <TooltipContent>Skipped — ongoing mode</TooltipContent>
+                          </Tooltip>
+                        );
+                      }
+
+                      return row;
                     })}
+                    </TooltipProvider>
                   </div>
                 </CardContent>
               </Card>
