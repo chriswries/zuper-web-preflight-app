@@ -1,7 +1,9 @@
-import { ArrowLeft, Play, RotateCcw, Download, Loader2 } from "lucide-react";
+import { ArrowLeft, Play, RotateCcw, Download, Loader2, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/StatusBadge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -124,14 +126,15 @@ export default function PageDetailPage() {
   const stageInfos = useMemo(() => {
     return stages.map((stage) => {
       const stageRuns = stage.agents.map((n) => runsByAgentNumber.get(n)).filter(Boolean);
+      const nonSkippedRuns = stageRuns.filter((r) => r?.status !== "skipped");
       return {
         number: stage.number,
         name: stage.name,
-        allPassed: stageRuns.length > 0 && stageRuns.every((r) => r?.status === "passed" || r?.status === "warning"),
-        anyFailed: stageRuns.some((r) => r?.status === "failed" || r?.status === "error"),
-        anyRunning: stageRuns.some((r) => r?.status === "running"),
-        anyQueued: stageRuns.some((r) => r?.status === "queued"),
-        hasRuns: stageRuns.length > 0,
+        allPassed: nonSkippedRuns.length > 0 && nonSkippedRuns.every((r) => r?.status === "passed" || r?.status === "warning"),
+        anyFailed: nonSkippedRuns.some((r) => r?.status === "failed" || r?.status === "error"),
+        anyRunning: nonSkippedRuns.some((r) => r?.status === "running"),
+        anyQueued: nonSkippedRuns.some((r) => r?.status === "queued"),
+        hasRuns: nonSkippedRuns.length > 0,
       };
     });
   }, [runsByAgentNumber]);
@@ -271,13 +274,31 @@ export default function PageDetailPage() {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex-1 min-w-0">
-          <h1 className="text-2xl font-semibold text-foreground truncate">
-            {page.slug || page.new_url}
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-semibold text-foreground truncate">
+              {page.slug || page.new_url}
+            </h1>
+            <Badge variant={page.mode === "migration" ? "default" : "secondary"} className="shrink-0">
+              {page.mode === "migration" ? "Migration" : "Ongoing"}
+            </Badge>
+          </div>
           <p className="text-sm text-muted-foreground">
-            Added {format(new Date(page.created_at), "MMM d, yyyy")} •{" "}
-            {page.mode === "migration" ? "Migration" : "Ongoing"} mode
+            Added {format(new Date(page.created_at), "MMM d, yyyy")}
           </p>
+          {page.mode === "migration" && page.old_url && (
+            <div className="flex items-center gap-1 mt-1">
+              <span className="text-xs text-muted-foreground">Old URL:</span>
+              <a
+                href={page.old_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-primary hover:underline inline-flex items-center gap-0.5"
+              >
+                {page.old_url}
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
+          )}
         </div>
         <StatusBadge status={page.status} />
       </div>
@@ -346,18 +367,22 @@ export default function PageDetailPage() {
 
                   {/* Agent rows */}
                   <div className="space-y-1 ml-10">
+                    <TooltipProvider>
                     {stage.agents.map((agentNum) => {
                       const run = runsByAgentNumber.get(agentNum);
                       const agentName =
                         (run?.agents as unknown as { name: string })?.name || `Agent ${agentNum}`;
                       const hasReport = !!run?.report;
+                      const isSkipped = run?.status === "skipped";
 
-                      return (
+                      const row = (
                         <div
                           key={agentNum}
                           className={`flex items-center gap-2 py-1.5 px-2 rounded text-sm ${
-                            hasReport ? "hover:bg-accent/50 cursor-pointer" : ""
-                          } ${selectedAgent === agentNum ? "bg-accent" : ""}`}
+                            isSkipped ? "opacity-50" : ""
+                          } ${hasReport ? "hover:bg-accent/50 cursor-pointer" : ""} ${
+                            selectedAgent === agentNum ? "bg-accent" : ""
+                          }`}
                           onClick={() =>
                             hasReport &&
                             setSelectedAgent(selectedAgent === agentNum ? null : agentNum)
@@ -366,7 +391,9 @@ export default function PageDetailPage() {
                           <span className="text-muted-foreground text-xs w-5 text-right">
                             {agentNum}
                           </span>
-                          <span className="flex-1 text-foreground">{agentName}</span>
+                          <span className={`flex-1 ${isSkipped ? "text-muted-foreground" : "text-foreground"}`}>
+                            {agentName}
+                          </span>
                           {run && (
                             <StatusBadge status={run.status} className="text-[10px] h-5" />
                           )}
@@ -377,7 +404,19 @@ export default function PageDetailPage() {
                           )}
                         </div>
                       );
+
+                      if (isSkipped && page.mode === "ongoing") {
+                        return (
+                          <Tooltip key={agentNum}>
+                            <TooltipTrigger asChild>{row}</TooltipTrigger>
+                            <TooltipContent>Skipped — ongoing mode</TooltipContent>
+                          </Tooltip>
+                        );
+                      }
+
+                      return row;
                     })}
+                    </TooltipProvider>
                   </div>
                 </CardContent>
               </Card>
