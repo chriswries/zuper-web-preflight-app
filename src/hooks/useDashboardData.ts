@@ -275,23 +275,23 @@ export function useDashboardData(dateRange: DateRange) {
     };
   }).sort((a, b) => b.rerun_rate - a.rerun_rate);
 
-  // Weekly trend
-  const weeklyTrend: WeeklyTrend[] = [];
-  const weekMap = new Map<string, number>();
+  // Weekly trend — sorted chronologically by actual date
+  const weekBuckets = new Map<number, { date: Date; count: number }>();
   for (const page of pages) {
     if (["passed", "failed", "passed_with_warnings"].includes(page.status)) {
-      const weekStart = format(startOfWeek(new Date(page.created_at), { weekStartsOn: 1 }), "MMM d");
-      weekMap.set(weekStart, (weekMap.get(weekStart) ?? 0) + 1);
+      const ws = startOfWeek(new Date(page.created_at), { weekStartsOn: 1 });
+      const key = ws.getTime();
+      const existing = weekBuckets.get(key);
+      if (existing) {
+        existing.count++;
+      } else {
+        weekBuckets.set(key, { date: ws, count: 1 });
+      }
     }
   }
-  // Sort weeks chronologically
-  const sortedWeeks = Array.from(weekMap.entries()).sort((a, b) => {
-    // Re-parse for sorting
-    return 0; // Already in order from iteration
-  });
-  for (const [week, count] of weekMap) {
-    weeklyTrend.push({ week, count });
-  }
+  const weeklyTrend: WeeklyTrend[] = Array.from(weekBuckets.values())
+    .sort((a, b) => a.date.getTime() - b.date.getTime())
+    .map((b) => ({ week: format(b.date, "MMM d"), count: b.count }));
 
   return {
     isLoading,
