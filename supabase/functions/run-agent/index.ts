@@ -74,7 +74,8 @@ async function callAnthropic(
   model: string,
   systemPrompt: string,
   userMessage: string,
-  retryStrict = false
+  retryStrict = false,
+  rateLimitRetries = 0
 ): Promise<AgentReport> {
   const system = retryStrict
     ? systemPrompt +
@@ -101,14 +102,15 @@ async function callAnthropic(
       signal: controller.signal,
     });
 
-    // Handle rate limiting
+    // Handle rate limiting with up to 2 retries (10s, 20s backoff)
     if (res.status === 429) {
-      if (!retryStrict) {
-        // Wait 5 seconds and retry once
-        await new Promise((r) => setTimeout(r, 5000));
-        return callAnthropic(apiKey, model, systemPrompt, userMessage, true);
+      if (rateLimitRetries < 2) {
+        const delayMs = (rateLimitRetries + 1) * 10_000; // 10s, then 20s
+        console.log(`Rate limited (429). Retry ${rateLimitRetries + 1}/2 after ${delayMs / 1000}s`);
+        await new Promise((r) => setTimeout(r, delayMs));
+        return callAnthropic(apiKey, model, systemPrompt, userMessage, retryStrict, rateLimitRetries + 1);
       }
-      throw new Error("Anthropic API rate limited after retry");
+      throw new Error("Anthropic API rate limited after 2 retries");
     }
 
     if (!res.ok) {
@@ -133,8 +135,8 @@ async function callAnthropic(
       return report;
     } catch (parseErr) {
       if (!retryStrict) {
-        // Retry with stricter prompt
-        return callAnthropic(apiKey, model, systemPrompt, userMessage, true);
+        // Retry with stricter prompt (keep same rateLimitRetries count)
+        return callAnthropic(apiKey, model, systemPrompt, userMessage, true, rateLimitRetries);
       }
       throw new Error("Agent produced unparseable results.");
     }
