@@ -62,7 +62,7 @@ export function useDashboardData(dateRange: DateRange) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("agent_runs")
-        .select("id, agent_id, page_id, status, run_number, created_at, completed_at, started_at")
+        .select("id, agent_id, page_id, status, run_number, created_at, completed_at, started_at, duration_ms")
         .gte("created_at", fromISO)
         .lte("created_at", toISO);
       if (error) throw error;
