@@ -516,8 +516,18 @@ Deno.serve(async (req) => {
           .eq("id", runId);
       }
 
+      // Recalculate page status if requested
+      let pageStatus: string | undefined;
+      if (recalculate_page_status) {
+        pageStatus = await recalcPageStatus(supabase, page_id);
+        await supabase
+          .from("pages")
+          .update({ status: pageStatus, updated_at: new Date().toISOString() })
+          .eq("id", page_id);
+      }
+
       return new Response(
-        JSON.stringify({ error: errorMsg, run_id: runId }),
+        JSON.stringify({ error: errorMsg, run_id: runId, page_status: pageStatus }),
         {
           status: 422,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
