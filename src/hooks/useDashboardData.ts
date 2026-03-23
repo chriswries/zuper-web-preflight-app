@@ -154,8 +154,28 @@ export function useDashboardData(dateRange: DateRange) {
   const failedPages = pages.filter((p) => p.status === "failed").length;
   const pendingPages = pages.filter((p) => p.status === "pending" || p.status === "in_progress").length;
 
-  const completedPages = pages.filter((p) => ["passed", "failed", "passed_with_warnings"].includes(p.status)).length;
-  const estimatedHoursSaved = (completedPages * baseline) / 60;
+  const completedPagesList = pages.filter((p) => ["passed", "failed", "passed_with_warnings"].includes(p.status));
+  const completedPages = completedPagesList.length;
+
+  // Estimated hours saved: ((baseline − avg_operator_attention_minutes) × completed_pages) / 60
+  // operator_attention = turnaround − sum_of_agent_durations (clamped to 0)
+  let estimatedHoursSaved = 0;
+  if (completedPages > 0) {
+    const operatorAttentionMinutes: number[] = [];
+    for (const page of completedPagesList) {
+      const pageRuns = agentRuns.filter((r) => r.page_id === page.id && r.completed_at);
+      if (pageRuns.length === 0) continue;
+      const lastCompleted = Math.max(...pageRuns.map((r) => new Date(r.completed_at!).getTime()));
+      const turnaroundMs = lastCompleted - new Date(page.created_at).getTime();
+      const totalAgentDurationMs = pageRuns.reduce((sum, r) => sum + (r.duration_ms ?? 0), 0);
+      const attentionMs = Math.max(0, turnaroundMs - totalAgentDurationMs);
+      operatorAttentionMinutes.push(attentionMs / 60000);
+    }
+    const avgOperatorAttention = operatorAttentionMinutes.length > 0
+      ? operatorAttentionMinutes.reduce((a, b) => a + b, 0) / operatorAttentionMinutes.length
+      : 0;
+    estimatedHoursSaved = Math.max(0, ((baseline - avgOperatorAttention) * completedPages) / 60);
+  }
 
   const queueRemaining = queueItems.filter((q) => q.status === "queued").length;
 
