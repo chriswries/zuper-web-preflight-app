@@ -324,17 +324,6 @@ export default function PageDetailPage() {
     }
   }, [user, id, queryClient]);
 
-  // Selected run for report display
-  const selectedRunData = useMemo(() => {
-    if (!selectedAgent) return null;
-    if (selectedRunId) {
-      return runs?.find((r) => r.id === selectedRunId) ?? null;
-    }
-    return latestRunByAgent.get(selectedAgent) ?? null;
-  }, [selectedAgent, selectedRunId, runs, latestRunByAgent]);
-
-  const selectedReport = selectedRunData?.report as unknown as AgentReport | null;
-  const agentHistory = selectedAgent ? (allRunsByAgent.get(selectedAgent) ?? []) : [];
 
   if (pageLoading) {
     return (
