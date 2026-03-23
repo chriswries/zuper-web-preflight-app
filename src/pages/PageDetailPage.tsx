@@ -15,6 +15,8 @@ import { PipelineStageBar } from "@/components/pipeline/PipelineStageBar";
 import { AgentReportCard } from "@/components/pipeline/AgentReportCard";
 import { RunPipelineDialog } from "@/components/pipeline/RunPipelineDialog";
 import { GateWarningDialog } from "@/components/pipeline/GateWarningDialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { exportMarkdown, exportPDF } from "@/lib/export-report";
 
 const stages = [
   { number: 1, name: "Content & Migration", agents: [1, 2, 3, 4] },
