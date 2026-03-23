@@ -298,35 +298,7 @@ Deno.serve(async (req) => {
 
     // Recalculate page status (only if no gate warnings stopped us)
     if (gateWarnings.length === 0) {
-      // Reload all runs to get final state
-      const { data: finalRuns } = await supabase
-        .from("agent_runs")
-        .select("status, agents!agent_runs_agent_id_fkey(is_blocking)")
-        .eq("page_id", page_id);
-
-      let pageStatus: string = "passed";
-
-      if (finalRuns) {
-        const blockingRuns = finalRuns.filter(
-          (r) => (r.agents as unknown as { is_blocking: boolean })?.is_blocking
-        );
-        const anyRunning = finalRuns.some(
-          (r) => r.status === "running" || r.status === "queued"
-        );
-        const anyBlockingFailed = blockingRuns.some(
-          (r) => r.status === "failed" || r.status === "error"
-        );
-        const anyWarning = finalRuns.some((r) => r.status === "warning");
-
-        if (anyRunning) {
-          pageStatus = "in_progress";
-        } else if (anyBlockingFailed) {
-          pageStatus = "failed";
-        } else if (anyWarning) {
-          pageStatus = "passed_with_warnings";
-        }
-      }
-
+      const pageStatus = await recalcPageStatus(supabase, page_id);
       await supabase
         .from("pages")
         .update({ status: pageStatus, updated_at: new Date().toISOString() })
