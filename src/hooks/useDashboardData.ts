@@ -62,7 +62,7 @@ export function useDashboardData(dateRange: DateRange) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("agent_runs")
-        .select("id, agent_id, page_id, status, run_number, created_at, completed_at, started_at")
+        .select("id, agent_id, page_id, status, run_number, created_at, completed_at, started_at, duration_ms")
         .gte("created_at", fromISO)
         .lte("created_at", toISO);
       if (error) throw error;
@@ -154,8 +154,28 @@ export function useDashboardData(dateRange: DateRange) {
   const failedPages = pages.filter((p) => p.status === "failed").length;
   const pendingPages = pages.filter((p) => p.status === "pending" || p.status === "in_progress").length;
 
-  const completedPages = pages.filter((p) => ["passed", "failed", "passed_with_warnings"].includes(p.status)).length;
-  const estimatedHoursSaved = (completedPages * baseline) / 60;
+  const completedPagesList = pages.filter((p) => ["passed", "failed", "passed_with_warnings"].includes(p.status));
+  const completedPages = completedPagesList.length;
+
+  // Estimated hours saved: ((baseline − avg_operator_attention_minutes) × completed_pages) / 60
+  // operator_attention = turnaround − sum_of_agent_durations (clamped to 0)
+  let estimatedHoursSaved = 0;
+  if (completedPages > 0) {
+    const operatorAttentionMinutes: number[] = [];
+    for (const page of completedPagesList) {
+      const pageRuns = agentRuns.filter((r) => r.page_id === page.id && r.completed_at);
+      if (pageRuns.length === 0) continue;
+      const lastCompleted = Math.max(...pageRuns.map((r) => new Date(r.completed_at!).getTime()));
+      const turnaroundMs = lastCompleted - new Date(page.created_at).getTime();
+      const totalAgentDurationMs = pageRuns.reduce((sum, r) => sum + (r.duration_ms ?? 0), 0);
+      const attentionMs = Math.max(0, turnaroundMs - totalAgentDurationMs);
+      operatorAttentionMinutes.push(attentionMs / 60000);
+    }
+    const avgOperatorAttention = operatorAttentionMinutes.length > 0
+      ? operatorAttentionMinutes.reduce((a, b) => a + b, 0) / operatorAttentionMinutes.length
+      : 0;
+    estimatedHoursSaved = Math.max(0, ((baseline - avgOperatorAttention) * completedPages) / 60);
+  }
 
   const queueRemaining = queueItems.filter((q) => q.status === "queued").length;
 
@@ -184,17 +204,28 @@ export function useDashboardData(dateRange: DateRange) {
   }).length;
   const pipelineCompletionRate = totalPages > 0 ? (pagesWithAllRuns / totalPages) * 100 : 0;
 
-  // Operator breakdown
+  // Operator breakdown — first-pass rate = pages where all blocking agents passed on run_number=1
+  const blockingAgentIds = new Set(agents.filter((a) => a.is_blocking).map((a) => a.id));
   const operatorBreakdown: OperatorRow[] = users
     .map((user) => {
       const userPages = pages.filter((p) => p.created_by === user.id);
-      const passed = userPages.filter((p) => p.status === "passed" || p.status === "passed_with_warnings").length;
+      const userCompleted = userPages.filter((p) => ["passed", "failed", "passed_with_warnings"].includes(p.status));
+      let firstPassCount = 0;
+      for (const page of userCompleted) {
+        const firstRuns = agentRuns.filter(
+          (r) => r.page_id === page.id && r.run_number === 1 && blockingAgentIds.has(r.agent_id)
+        );
+        const allPassed = firstRuns.length > 0 && firstRuns.every(
+          (r) => r.status === "passed" || r.status === "warning"
+        );
+        if (allPassed) firstPassCount++;
+      }
       return {
         user_id: user.id,
         display_name: user.display_name || user.email,
         total_pages: userPages.length,
-        passed_pages: passed,
-        first_pass_rate: userPages.length > 0 ? passed / userPages.length : 0,
+        passed_pages: firstPassCount,
+        first_pass_rate: userCompleted.length > 0 ? firstPassCount / userCompleted.length : 0,
       };
     })
     .filter((o) => o.total_pages > 0)
@@ -244,23 +275,23 @@ export function useDashboardData(dateRange: DateRange) {
     };
   }).sort((a, b) => b.rerun_rate - a.rerun_rate);
 
-  // Weekly trend
-  const weeklyTrend: WeeklyTrend[] = [];
-  const weekMap = new Map<string, number>();
+  // Weekly trend — sorted chronologically by actual date
+  const weekBuckets = new Map<number, { date: Date; count: number }>();
   for (const page of pages) {
     if (["passed", "failed", "passed_with_warnings"].includes(page.status)) {
-      const weekStart = format(startOfWeek(new Date(page.created_at), { weekStartsOn: 1 }), "MMM d");
-      weekMap.set(weekStart, (weekMap.get(weekStart) ?? 0) + 1);
+      const ws = startOfWeek(new Date(page.created_at), { weekStartsOn: 1 });
+      const key = ws.getTime();
+      const existing = weekBuckets.get(key);
+      if (existing) {
+        existing.count++;
+      } else {
+        weekBuckets.set(key, { date: ws, count: 1 });
+      }
     }
   }
-  // Sort weeks chronologically
-  const sortedWeeks = Array.from(weekMap.entries()).sort((a, b) => {
-    // Re-parse for sorting
-    return 0; // Already in order from iteration
-  });
-  for (const [week, count] of weekMap) {
-    weeklyTrend.push({ week, count });
-  }
+  const weeklyTrend: WeeklyTrend[] = Array.from(weekBuckets.values())
+    .sort((a, b) => a.date.getTime() - b.date.getTime())
+    .map((b) => ({ week: format(b.date, "MMM d"), count: b.count }));
 
   return {
     isLoading,
