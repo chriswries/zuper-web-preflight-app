@@ -342,24 +342,28 @@ export function exportPDF(page: PageForExport, latestRuns: Map<number, AgentRunF
           check.status === "failed" ? [239, 68, 68] :
           check.status === "warning" ? [245, 158, 11] : [156, 163, 175];
 
-        doc.setFontSize(8);
+        doc.setFontSize(7);
         doc.setFont("helvetica", "bold");
         doc.setTextColor(...checkColor);
         doc.text(icon, ml + 2, y);
         doc.setTextColor(45, 30, 14);
+        doc.setFontSize(8);
         const sevStr = check.severity ? ` [${check.severity}]` : "";
-        doc.text(`${check.check_name}${sevStr}`, ml + 8, y);
+        doc.text(`${check.check_name}${sevStr}`, ml + 18, y);
         y += 4;
 
         doc.setFont("helvetica", "normal");
         doc.setFontSize(7);
 
-        if (check.details) { drawText(check.details, ml + 8, cw - 8, 7, "normal", [100, 100, 100]); }
-        if (check.finding) { drawText(`Finding: ${check.finding}`, ml + 8, cw - 8, 7); }
-        if (check.expected) { drawText(`Expected: ${check.expected}`, ml + 8, cw - 8, 7, "normal", [34, 140, 70]); }
-        if (check.actual) { drawText(`Actual: ${check.actual}`, ml + 8, cw - 8, 7, "normal", [200, 50, 50]); }
-        if (check.element_location) { drawText(`Element: ${check.element_location}`, ml + 8, cw - 8, 7, "italic", [100, 100, 100]); }
-        if (check.recommendation) { drawText(`Recommendation: ${check.recommendation}`, ml + 8, cw - 8, 7, "normal", [80, 80, 80]); }
+        if (check.details) { drawText(check.details, ml + 18, cw - 18, 7, "normal", [100, 100, 100]); }
+        if (check.finding) { drawText(`Finding: ${check.finding}`, ml + 18, cw - 18, 7); }
+        if (check.expected) { drawText(`Expected: ${check.expected}`, ml + 18, cw - 18, 7, "normal", [34, 140, 70]); }
+        if (check.actual) { drawText(`Actual: ${check.actual}`, ml + 18, cw - 18, 7, "normal", [200, 50, 50]); }
+        if (check.element_location) { drawText(`Element: ${check.element_location}`, ml + 18, cw - 18, 7, "italic", [100, 100, 100]); }
+        if (check.recommendation) { drawText(`Recommendation: ${check.recommendation}`, ml + 18, cw - 18, 7, "normal", [80, 80, 80]); }
+        y += 1;
+        doc.setDrawColor(240);
+        doc.line(ml + 18, y, pw - mr, y);
         y += 3;
       }
     } else if (run.status === "skipped" || run.status === "not_started") {
