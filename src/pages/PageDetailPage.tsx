@@ -68,8 +68,6 @@ export default function PageDetailPage() {
   const queryClient = useQueryClient();
 
   const [pipelineRunning, setPipelineRunning] = useState(false);
-  const [selectedAgent, setSelectedAgent] = useState<number | null>(null);
-  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [rerunningAgent, setRerunningAgent] = useState<string | null>(null);
 
   // Dialog state
