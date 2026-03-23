@@ -427,10 +427,39 @@ export default function PageDetailPage() {
           <RotateCcw className="h-4 w-4 mr-1" />
           Re-Run Failed {failedCount > 0 && `(${failedCount})`}
         </Button>
-        <Button variant="outline" disabled>
-          <Download className="h-4 w-4 mr-1" />
-          Export
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline">
+              <Download className="h-4 w-4 mr-1" />
+              Export
+              <ChevronDown className="h-3 w-3 ml-1" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => {
+              if (page && latestRunByAgent.size > 0) {
+                exportMarkdown(page, latestRunByAgent as any);
+                toast.success("Markdown report downloaded");
+              } else {
+                toast.error("No agent runs to export");
+              }
+            }}>
+              <FileText className="h-4 w-4 mr-2" />
+              Markdown (.md)
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => {
+              if (page && latestRunByAgent.size > 0) {
+                exportPDF(page, latestRunByAgent as any);
+                toast.success("PDF report downloaded");
+              } else {
+                toast.error("No agent runs to export");
+              }
+            }}>
+              <Download className="h-4 w-4 mr-2" />
+              PDF (.pdf)
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Pipeline visualization */}
