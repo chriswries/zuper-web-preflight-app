@@ -359,7 +359,6 @@ export default function PageDetailPage() {
     confirmDialog.stageNumber
   );
 
-  const [searchParams] = useSearchParams();
   const fromQueue = searchParams.get("from") === "queue";
 
   return (
