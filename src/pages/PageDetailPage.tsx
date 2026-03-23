@@ -482,87 +482,22 @@ export default function PageDetailPage() {
                 </div>
 
                 {/* Agent rows */}
-                <div className="space-y-1 ml-10">
+                <div className="space-y-0.5 ml-10">
                   <TooltipProvider>
-                    {stage.agents.map((agentNum) => {
-                      const run = latestRunByAgent.get(agentNum);
-                      const agentName = run?.agents?.name || `Agent ${agentNum}`;
-                      const hasReport = !!run?.report;
-                      const isSkipped = run?.status === "skipped";
-                      const agentId = run?.agents?.id;
-                      const canRerun = run && !isSkipped && !isPipelineActive && !pipelineRunning &&
-                        (run.status === "passed" || run.status === "failed" || run.status === "error" || run.status === "warning");
-                      const historyCount = allRunsByAgent.get(agentNum)?.length ?? 0;
-
-                      const row = (
-                        <div
-                          key={agentNum}
-                          className={`flex items-center gap-2 py-1.5 px-2 rounded text-sm ${
-                            isSkipped ? "opacity-50" : ""
-                          } ${hasReport ? "hover:bg-accent/50 cursor-pointer" : ""} ${
-                            selectedAgent === agentNum ? "bg-accent" : ""
-                          }`}
-                          onClick={() => {
-                            if (hasReport && agentId) {
-                              navigate(`/pages/${id}/agents/${agentId}`);
-                            } else if (run) {
-                              setSelectedAgent(selectedAgent === agentNum ? null : agentNum);
-                              setSelectedRunId(null);
-                            }
-                          }}
-                        >
-                          <span className="text-muted-foreground text-xs w-5 text-right">
-                            {agentNum}
-                          </span>
-                          <span className={`flex-1 ${isSkipped ? "text-muted-foreground" : "text-foreground"}`}>
-                            {agentName}
-                          </span>
-                          {historyCount > 1 && (
-                            <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
-                              <History className="h-3 w-3" />
-                              {historyCount}
-                            </span>
-                          )}
-                          {run && (
-                            <StatusBadge status={run.status as any} className="text-[10px] h-5" />
-                          )}
-                          {run?.duration_ms && (
-                            <span className="text-xs text-muted-foreground">
-                              {(run.duration_ms / 1000).toFixed(1)}s
-                            </span>
-                          )}
-                          {canRerun && agentId && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-5 w-5 p-0"
-                              disabled={rerunningAgent === agentId}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                rerunSingleAgent(agentId, agentNum);
-                              }}
-                            >
-                              {rerunningAgent === agentId ? (
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                              ) : (
-                                <RotateCcw className="h-3 w-3" />
-                              )}
-                            </Button>
-                          )}
-                        </div>
-                      );
-
-                      if (isSkipped && page.mode === "ongoing") {
-                        return (
-                          <Tooltip key={agentNum}>
-                            <TooltipTrigger asChild>{row}</TooltipTrigger>
-                            <TooltipContent>Skipped — ongoing mode</TooltipContent>
-                          </Tooltip>
-                        );
-                      }
-
-                      return row;
-                    })}
+                    {stage.agents.map((agentNum) => (
+                      <ExpandableAgentRow
+                        key={agentNum}
+                        agentNum={agentNum}
+                        latestRun={latestRunByAgent.get(agentNum)}
+                        allRuns={allRunsByAgent.get(agentNum) ?? []}
+                        pageId={id!}
+                        pageMode={page.mode}
+                        isPipelineActive={isPipelineActive}
+                        pipelineRunning={pipelineRunning}
+                        rerunningAgent={rerunningAgent}
+                        onRerun={rerunSingleAgent}
+                      />
+                    ))}
                   </TooltipProvider>
                 </div>
               </CardContent>
