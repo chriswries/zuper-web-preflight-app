@@ -281,7 +281,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { page_id, agent_id } = await req.json();
+    const { page_id, agent_id, recalculate_page_status = false } = await req.json();
 
     if (!page_id || !agent_id) {
       return new Response(
