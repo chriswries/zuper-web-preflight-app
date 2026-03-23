@@ -470,6 +470,16 @@ Deno.serve(async (req) => {
           .eq("id", runId);
       }
 
+      // 9. Recalculate page status if requested (single agent re-run)
+      let pageStatus: string | undefined;
+      if (recalculate_page_status) {
+        pageStatus = await recalcPageStatus(supabase, page_id);
+        await supabase
+          .from("pages")
+          .update({ status: pageStatus, updated_at: new Date().toISOString() })
+          .eq("id", page_id);
+      }
+
       return new Response(
         JSON.stringify({
           success: true,
@@ -478,6 +488,7 @@ Deno.serve(async (req) => {
           duration_ms: durationMs,
           summary_stats: summaryStats,
           report,
+          page_status: pageStatus,
         }),
         {
           status: 200,
