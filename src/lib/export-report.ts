@@ -336,7 +336,7 @@ export function exportPDF(page: PageForExport, latestRuns: Map<number, AgentRunF
     if (report?.checks && report.checks.length > 0) {
       for (const check of report.checks) {
         checkPage(12);
-        const icon = check.status === "passed" ? "✓" : check.status === "failed" ? "✗" : check.status === "warning" ? "!" : "—";
+        const icon = check.status === "passed" ? "PASS" : check.status === "failed" ? "FAIL" : check.status === "warning" ? "WARN" : "--";
         const checkColor: [number, number, number] =
           check.status === "passed" ? [34, 197, 94] :
           check.status === "failed" ? [239, 68, 68] :
