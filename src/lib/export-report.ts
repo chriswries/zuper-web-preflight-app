@@ -328,7 +328,7 @@ export function exportPDF(page: PageForExport, latestRuns: Map<number, AgentRunF
     }
 
     if (LOWER_CONFIDENCE_AGENTS.includes(agentNum)) {
-      drawText(`👁 Review recommended — this agent uses AI judgment.`, ml, cw, 7, "italic", [180, 130, 40]);
+      drawText(`[Review] Review recommended -- this agent uses AI judgment.`, ml, cw, 7, "italic", [180, 130, 40]);
       y += 1;
     }
 
