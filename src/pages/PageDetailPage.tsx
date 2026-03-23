@@ -63,6 +63,7 @@ type AgentRunRow = {
 export default function PageDetailPage() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
@@ -358,7 +359,6 @@ export default function PageDetailPage() {
     confirmDialog.stageNumber
   );
 
-  const [searchParams] = useSearchParams();
   const fromQueue = searchParams.get("from") === "queue";
 
   return (
