@@ -274,13 +274,31 @@ export default function PageDetailPage() {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex-1 min-w-0">
-          <h1 className="text-2xl font-semibold text-foreground truncate">
-            {page.slug || page.new_url}
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-semibold text-foreground truncate">
+              {page.slug || page.new_url}
+            </h1>
+            <Badge variant={page.mode === "migration" ? "default" : "secondary"} className="shrink-0">
+              {page.mode === "migration" ? "Migration" : "Ongoing"}
+            </Badge>
+          </div>
           <p className="text-sm text-muted-foreground">
-            Added {format(new Date(page.created_at), "MMM d, yyyy")} •{" "}
-            {page.mode === "migration" ? "Migration" : "Ongoing"} mode
+            Added {format(new Date(page.created_at), "MMM d, yyyy")}
           </p>
+          {page.mode === "migration" && page.old_url && (
+            <div className="flex items-center gap-1 mt-1">
+              <span className="text-xs text-muted-foreground">Old URL:</span>
+              <a
+                href={page.old_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-primary hover:underline inline-flex items-center gap-0.5"
+              >
+                {page.old_url}
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
+          )}
         </div>
         <StatusBadge status={page.status} />
       </div>
