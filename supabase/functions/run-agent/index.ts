@@ -639,6 +639,7 @@ Deno.serve(async (req) => {
           summary_stats: summaryStats,
           report,
           page_status: pageStatus,
+          ...(rateLimitRemaining !== undefined && { rate_limit_remaining: rateLimitRemaining }),
         }),
         {
           status: 200,
