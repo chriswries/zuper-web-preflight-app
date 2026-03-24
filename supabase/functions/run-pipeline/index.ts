@@ -347,6 +347,22 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Cleanup: reset any orphaned "queued" runs to "not_started"
+    const { data: orphanedRuns } = await supabase
+      .from("agent_runs")
+      .select("id")
+      .eq("page_id", page_id)
+      .eq("status", "queued");
+
+    if (orphanedRuns && orphanedRuns.length > 0) {
+      for (const orphan of orphanedRuns) {
+        await supabase
+          .from("agent_runs")
+          .update({ status: "not_started" })
+          .eq("id", orphan.id);
+      }
+    }
+
     // Recalculate page status (only if no gate warnings stopped us)
     if (gateWarnings.length === 0) {
       const pageStatus = await recalcPageStatus(supabase, page_id);
