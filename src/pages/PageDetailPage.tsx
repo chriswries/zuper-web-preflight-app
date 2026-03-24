@@ -174,59 +174,8 @@ export default function PageDetailPage() {
   }, [latestRunByAgent]);
 
 
-  const executePipeline = async (
-    scope: RunScope,
-    stageNumber?: number,
-  ) => {
-    if (!user || !id) return;
-    setPipelineRunning(true);
 
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Not authenticated");
 
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/run-pipeline`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            page_id: id,
-            scope,
-            stage_number: stageNumber,
-          }),
-        }
-      );
-
-      const result = await res.json();
-
-      if (res.status === 409) {
-        toast.error(result.error);
-        return;
-      }
-
-      if (!res.ok) {
-        toast.error(result.error || "Pipeline execution failed");
-        return;
-      }
-
-      const passed = result.results?.filter((r: { status: string }) => r.status === "passed").length ?? 0;
-      const failed = result.results?.filter((r: { status: string }) => r.status === "failed" || r.status === "error").length ?? 0;
-
-      toast.success(
-        `Pipeline complete: ${passed} passed, ${failed} failed out of ${result.completed} agents`
-      );
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to run pipeline");
-    } finally {
-      setPipelineRunning(false);
-      queryClient.invalidateQueries({ queryKey: ["agent-runs", id] });
-      queryClient.invalidateQueries({ queryKey: ["page", id] });
-    }
-  };
 
   const rerunSingleAgent = useCallback(async (agentId: string, agentNumber: number) => {
     if (!user || !id) return;
