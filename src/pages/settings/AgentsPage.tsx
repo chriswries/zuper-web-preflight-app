@@ -1,3 +1,4 @@
+import TrackingConfigTab from "@/components/settings/TrackingConfigTab";
 import { Bot, Loader2, Save, AlertCircle, ChevronRight, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,13 +20,16 @@ const CONFIDENCE_LABELS: Record<string, { label: string; className: string }> = 
 };
 
 // Agents that have runtime config in agent_configs
+// Agent 11 uses a custom multi-field config tab (TrackingConfigTab), not the generic one
 const CONFIGURABLE_AGENTS: Record<number, { config_key: string; label: string; description: string }> = {
   2: { config_key: "copy_style_guide", label: "Copy Style Guide", description: "Capitalization, punctuation, number formatting, and spelling rules for copy editing checks." },
   8: { config_key: "brand_voice_guidelines", label: "Brand Voice Guidelines", description: "Brand voice, tone, positioning, and approved terminology for voice compliance checks." },
   9: { config_key: "design_tokens", label: "Design Tokens", description: "Brand colors, typography, CTA styling, and spacing rules for visual design checks." },
-  11: { config_key: "tracking_ids", label: "Tracking IDs", description: "Expected analytics/tracking IDs to verify on pages. Required for accurate checks." },
   15: { config_key: "allowed_third_party_domains", label: "Allowed Third-Party Domains", description: "Whitelist of allowed external domains for security checks." },
 };
+
+// Agent 11 has its own structured config tab
+const TRACKING_CONFIG_AGENT = 11;
 
 type AgentRow = {
   id: string;
@@ -136,7 +140,8 @@ function AgentConfigPanel({
   const [isActive, setIsActive] = useState(agent.is_active);
   const [saving, setSaving] = useState(false);
   const configDef = CONFIGURABLE_AGENTS[agent.agent_number];
-  const hasConfigTab = !!configDef;
+  const isTrackingAgent = agent.agent_number === TRACKING_CONFIG_AGENT;
+  const hasConfigTab = !!configDef || isTrackingAgent;
 
   useEffect(() => {
     setPrompt(agent.system_prompt ?? "");
@@ -244,7 +249,11 @@ function AgentConfigPanel({
 
           {hasConfigTab && (
             <TabsContent value="config" className="mt-4">
-              <AgentConfigTab agentId={agent.id} agentNumber={agent.agent_number} config={configDef!} />
+              {isTrackingAgent ? (
+                <TrackingConfigTab agentId={agent.id} />
+              ) : (
+                <AgentConfigTab agentId={agent.id} agentNumber={agent.agent_number} config={configDef!} />
+              )}
             </TabsContent>
           )}
         </Tabs>
