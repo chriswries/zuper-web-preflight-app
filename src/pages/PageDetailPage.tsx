@@ -1,4 +1,4 @@
-import { ArrowLeft, Play, RotateCcw, Download, Loader2, ExternalLink, FileText, ChevronDown } from "lucide-react";
+import { ArrowLeft, Play, RotateCcw, Download, Loader2, ExternalLink, FileText, ChevronDown, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,10 +12,10 @@ import { format } from "date-fns";
 import { useState, useMemo, useCallback } from "react";
 import { toast } from "sonner";
 import { PipelineStageBar } from "@/components/pipeline/PipelineStageBar";
-
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { exportMarkdown, exportPDF } from "@/lib/export-report";
 import { ExpandableAgentRow } from "@/components/pipeline/ExpandableAgentRow";
+import { usePipelineRunner } from "@/hooks/usePipelineRunner";
 
 const stages = [
   { number: 1, name: "Content & Migration", agents: [1, 2, 3, 4] },
