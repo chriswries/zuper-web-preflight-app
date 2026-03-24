@@ -585,7 +585,7 @@ Deno.serve(async (req) => {
 
       // 6. Call Anthropic
       const model = MODEL_MAP[agent.model_tier] || MODEL_MAP.haiku;
-      const report = await callAnthropic(
+      const { report, rateLimitRemaining } = await callAnthropic(
         anthropicKey,
         model,
         systemPrompt,
