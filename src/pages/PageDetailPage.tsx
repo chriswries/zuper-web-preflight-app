@@ -65,13 +65,6 @@ export default function PageDetailPage() {
   const [rerunningAgent, setRerunningAgent] = useState<string | null>(null);
 
 
-  const [gateDialog, setGateDialog] = useState<{
-    open: boolean;
-    warnings: GateWarning[];
-    scope: RunScope;
-    stageNumber?: number;
-    overrides: number[];
-  }>({ open: false, warnings: [], scope: "all", overrides: [] });
 
   // Load page
   const { data: page, isLoading: pageLoading } = useQuery({
