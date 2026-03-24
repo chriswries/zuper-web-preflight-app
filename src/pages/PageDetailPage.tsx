@@ -191,7 +191,6 @@ export default function PageDetailPage() {
             page_id: id,
             scope,
             stage_number: stageNumber,
-            override_gates: overrideGates,
           }),
         }
       );
