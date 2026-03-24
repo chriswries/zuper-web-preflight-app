@@ -35,7 +35,7 @@ interface AgentReport {
   summary: string;
 }
 
-type RunScope = "all" | "stage" | "failed";
+// RunScope type removed — usePipelineRunner handles this internally
 
 type AgentRunRow = {
   id: string;
