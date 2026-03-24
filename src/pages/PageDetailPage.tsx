@@ -1,4 +1,4 @@
-import { ArrowLeft, Play, RotateCcw, Download, Loader2, ExternalLink, FileText, ChevronDown } from "lucide-react";
+import { ArrowLeft, Play, RotateCcw, Download, Loader2, ExternalLink, FileText, ChevronDown, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,10 +12,10 @@ import { format } from "date-fns";
 import { useState, useMemo, useCallback } from "react";
 import { toast } from "sonner";
 import { PipelineStageBar } from "@/components/pipeline/PipelineStageBar";
-
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { exportMarkdown, exportPDF } from "@/lib/export-report";
 import { ExpandableAgentRow } from "@/components/pipeline/ExpandableAgentRow";
+import { usePipelineRunner } from "@/hooks/usePipelineRunner";
 
 const stages = [
   { number: 1, name: "Content & Migration", agents: [1, 2, 3, 4] },
@@ -35,7 +35,7 @@ interface AgentReport {
   summary: string;
 }
 
-type RunScope = "all" | "stage" | "failed";
+// RunScope type removed — usePipelineRunner handles this internally
 
 type AgentRunRow = {
   id: string;
@@ -61,7 +61,13 @@ export default function PageDetailPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  const [pipelineRunning, setPipelineRunning] = useState(false);
+  const invalidateQueries = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["agent-runs", id] });
+    queryClient.invalidateQueries({ queryKey: ["page", id] });
+  }, [queryClient, id]);
+
+  const pipeline = usePipelineRunner(id, invalidateQueries);
+
   const [rerunningAgent, setRerunningAgent] = useState<string | null>(null);
 
 
@@ -109,7 +115,7 @@ export default function PageDetailPage() {
       return data as unknown as AgentRunRow[];
     },
     enabled: !!id,
-    refetchInterval: pipelineRunning ? 2000 : false,
+    refetchInterval: pipeline.isRunning ? 2000 : false,
   });
 
   // Latest run per agent_number (for main display + status)
@@ -168,64 +174,12 @@ export default function PageDetailPage() {
   }, [latestRunByAgent]);
 
 
-  const executePipeline = async (
-    scope: RunScope,
-    stageNumber?: number,
-  ) => {
-    if (!user || !id) return;
-    setPipelineRunning(true);
 
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Not authenticated");
 
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/run-pipeline`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            page_id: id,
-            scope,
-            stage_number: stageNumber,
-          }),
-        }
-      );
-
-      const result = await res.json();
-
-      if (res.status === 409) {
-        toast.error(result.error);
-        return;
-      }
-
-      if (!res.ok) {
-        toast.error(result.error || "Pipeline execution failed");
-        return;
-      }
-
-      const passed = result.results?.filter((r: { status: string }) => r.status === "passed").length ?? 0;
-      const failed = result.results?.filter((r: { status: string }) => r.status === "failed" || r.status === "error").length ?? 0;
-
-      toast.success(
-        `Pipeline complete: ${passed} passed, ${failed} failed out of ${result.completed} agents`
-      );
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to run pipeline");
-    } finally {
-      setPipelineRunning(false);
-      queryClient.invalidateQueries({ queryKey: ["agent-runs", id] });
-      queryClient.invalidateQueries({ queryKey: ["page", id] });
-    }
-  };
 
   const rerunSingleAgent = useCallback(async (agentId: string, agentNumber: number) => {
     if (!user || !id) return;
     setRerunningAgent(agentId);
-    setPipelineRunning(true);
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -257,11 +211,9 @@ export default function PageDetailPage() {
       toast.error(err instanceof Error ? err.message : "Re-run failed");
     } finally {
       setRerunningAgent(null);
-      setPipelineRunning(false);
-      queryClient.invalidateQueries({ queryKey: ["agent-runs", id] });
-      queryClient.invalidateQueries({ queryKey: ["page", id] });
+      invalidateQueries();
     }
-  }, [user, id, queryClient]);
+  }, [user, id, invalidateQueries]);
 
 
   if (pageLoading) {
@@ -329,22 +281,32 @@ export default function PageDetailPage() {
       </div>
 
       {/* Action bar */}
-      <div className="flex gap-2">
-        <Button
-          onClick={() => executePipeline("all")}
-          disabled={isPipelineActive || pipelineRunning}
-        >
-          {pipelineRunning ? (
-            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-          ) : (
-            <Play className="h-4 w-4 mr-1" />
-          )}
-          {isPipelineActive ? "QA Running…" : "Run All"}
-        </Button>
+      <div className="flex flex-wrap items-center gap-2">
+        {pipeline.isRunning ? (
+          <Button
+            variant="destructive"
+            onClick={pipeline.cancelPipeline}
+          >
+            <Square className="h-4 w-4 mr-1" />
+            Stop Pipeline
+          </Button>
+        ) : (
+          <Button
+            onClick={() => pipeline.startPipeline("all")}
+            disabled={isPipelineActive}
+          >
+            {isPipelineActive ? (
+              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+            ) : (
+              <Play className="h-4 w-4 mr-1" />
+            )}
+            {isPipelineActive ? "QA Running…" : "Run All"}
+          </Button>
+        )}
         <Button
           variant="outline"
-          onClick={() => executePipeline("failed")}
-          disabled={isPipelineActive || pipelineRunning || failedCount === 0}
+          onClick={() => pipeline.startPipeline("failed")}
+          disabled={isPipelineActive || pipeline.isRunning || failedCount === 0}
         >
           <RotateCcw className="h-4 w-4 mr-1" />
           Re-Run Failed {failedCount > 0 && `(${failedCount})`}
@@ -382,6 +344,14 @@ export default function PageDetailPage() {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        {/* Progress indicator */}
+        {pipeline.isRunning && pipeline.currentAgentName && (
+          <span className="text-sm text-muted-foreground ml-2">
+            <Loader2 className="h-3.5 w-3.5 animate-spin inline mr-1" />
+            Running {pipeline.currentAgentName} ({pipeline.completedCount}/{pipeline.totalCount})
+          </span>
+        )}
       </div>
 
       {/* Pipeline visualization */}
@@ -408,8 +378,8 @@ export default function PageDetailPage() {
                     size="sm"
                     variant="outline"
                     className="h-7 text-xs"
-                    onClick={() => executePipeline("stage", stage.number)}
-                    disabled={isPipelineActive || pipelineRunning}
+                    onClick={() => pipeline.startPipeline("stage", stage.number)}
+                    disabled={isPipelineActive || pipeline.isRunning}
                   >
                     <Play className="h-3 w-3 mr-1" />
                     Run Stage
@@ -428,7 +398,7 @@ export default function PageDetailPage() {
                         pageId={id!}
                         pageMode={page.mode}
                         isPipelineActive={isPipelineActive}
-                        pipelineRunning={pipelineRunning}
+                        pipelineRunning={pipeline.isRunning}
                         rerunningAgent={rerunningAgent}
                         onRerun={rerunSingleAgent}
                       />
