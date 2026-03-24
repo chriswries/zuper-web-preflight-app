@@ -249,7 +249,7 @@ Deno.serve(async (req) => {
             const justRan = results.find((r) => r.agent_number === agentNum);
             const status = justRan?.status || priorRun?.status;
 
-            if (status === "failed" || status === "error") {
+            if (status === "failed") {
               failedInPrior.push({
                 agent_number: agentNum,
                 name: priorAgent.name,
@@ -318,8 +318,8 @@ Deno.serve(async (req) => {
           duration_ms: result.duration_ms,
         });
 
-        // Throttle to avoid Anthropic rate limits
-        await new Promise((r) => setTimeout(r, 2000));
+        // Throttle to avoid Anthropic rate limits (Tier 1 = 50 RPM)
+        await new Promise((r) => setTimeout(r, 4000));
 
         // Update our local tracking
         const existing = runsByAgentId.get(agent.id);
@@ -344,6 +344,22 @@ Deno.serve(async (req) => {
             })
             .eq("id", existing.id);
         }
+      }
+    }
+
+    // Cleanup: reset any orphaned "queued" runs to "not_started"
+    const { data: orphanedRuns } = await supabase
+      .from("agent_runs")
+      .select("id")
+      .eq("page_id", page_id)
+      .eq("status", "queued");
+
+    if (orphanedRuns && orphanedRuns.length > 0) {
+      for (const orphan of orphanedRuns) {
+        await supabase
+          .from("agent_runs")
+          .update({ status: "not_started" })
+          .eq("id", orphan.id);
       }
     }
 

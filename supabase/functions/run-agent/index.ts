@@ -105,7 +105,7 @@ async function callAnthropic(
     // Handle rate limiting with up to 2 retries (10s, 20s backoff)
     if (res.status === 429) {
       if (rateLimitRetries < 2) {
-        const delayMs = (rateLimitRetries + 1) * 10_000; // 10s, then 20s
+        const delayMs = (rateLimitRetries + 1) * 15_000; // 15s, then 30s
         console.log(`Rate limited (429). Retry ${rateLimitRetries + 1}/2 after ${delayMs / 1000}s`);
         await new Promise((r) => setTimeout(r, delayMs));
         return callAnthropic(apiKey, model, systemPrompt, userMessage, retryStrict, rateLimitRetries + 1);
