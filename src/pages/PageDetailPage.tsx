@@ -12,7 +12,7 @@ import { format } from "date-fns";
 import { useState, useMemo, useCallback } from "react";
 import { toast } from "sonner";
 import { PipelineStageBar } from "@/components/pipeline/PipelineStageBar";
-import { RunPipelineDialog } from "@/components/pipeline/RunPipelineDialog";
+
 import { GateWarningDialog } from "@/components/pipeline/GateWarningDialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { exportMarkdown, exportPDF } from "@/lib/export-report";
@@ -70,13 +70,6 @@ export default function PageDetailPage() {
   const [pipelineRunning, setPipelineRunning] = useState(false);
   const [rerunningAgent, setRerunningAgent] = useState<string | null>(null);
 
-  // Dialog state
-  const [confirmDialog, setConfirmDialog] = useState<{
-    open: boolean;
-    scope: RunScope;
-    stageNumber?: number;
-    stageName?: string;
-  }>({ open: false, scope: "all" });
 
   const [gateDialog, setGateDialog] = useState<{
     open: boolean;
@@ -187,31 +180,6 @@ export default function PageDetailPage() {
     return count;
   }, [latestRunByAgent]);
 
-  const getAgentCounts = (scope: RunScope, stageNumber?: number) => {
-    if (!allAgents || !page) return { agentCount: 0, browserlessCount: 0 };
-    let filtered = allAgents.filter((a) => !(a.migration_only && page.mode === "ongoing"));
-
-    if (scope === "stage" && stageNumber) {
-      filtered = filtered.filter((a) => a.stage_number === stageNumber);
-    } else if (scope === "failed") {
-      const failedAgentIds = new Set<string>();
-      latestRunByAgent.forEach((run) => {
-        if ((run.status === "failed" || run.status === "error") && run.agents?.id) {
-          failedAgentIds.add(run.agents.id);
-        }
-      });
-      filtered = filtered.filter((a) => failedAgentIds.has(a.id));
-    }
-
-    return {
-      agentCount: filtered.length,
-      browserlessCount: filtered.filter((a) => a.requires_browserless).length,
-    };
-  };
-
-  const openRunDialog = (scope: RunScope, stageNumber?: number, stageName?: string) => {
-    setConfirmDialog({ open: true, scope, stageNumber, stageName });
-  };
 
   const executePipeline = async (
     scope: RunScope,
@@ -341,10 +309,6 @@ export default function PageDetailPage() {
     );
   }
 
-  const { agentCount, browserlessCount } = getAgentCounts(
-    confirmDialog.scope,
-    confirmDialog.stageNumber
-  );
 
   const fromQueue = searchParams.get("from") === "queue";
 
@@ -396,7 +360,7 @@ export default function PageDetailPage() {
       {/* Action bar */}
       <div className="flex gap-2">
         <Button
-          onClick={() => openRunDialog("all")}
+          onClick={() => executePipeline("all")}
           disabled={isPipelineActive || pipelineRunning}
         >
           {pipelineRunning ? (
@@ -408,7 +372,7 @@ export default function PageDetailPage() {
         </Button>
         <Button
           variant="outline"
-          onClick={() => openRunDialog("failed")}
+          onClick={() => executePipeline("failed")}
           disabled={isPipelineActive || pipelineRunning || failedCount === 0}
         >
           <RotateCcw className="h-4 w-4 mr-1" />
@@ -473,7 +437,7 @@ export default function PageDetailPage() {
                     size="sm"
                     variant="outline"
                     className="h-7 text-xs"
-                    onClick={() => openRunDialog("stage", stage.number, stage.name)}
+                    onClick={() => executePipeline("stage", stage.number)}
                     disabled={isPipelineActive || pipelineRunning}
                   >
                     <Play className="h-3 w-3 mr-1" />
@@ -508,18 +472,6 @@ export default function PageDetailPage() {
 
 
       {/* Dialogs */}
-      <RunPipelineDialog
-        open={confirmDialog.open}
-        onOpenChange={(open) => setConfirmDialog((prev) => ({ ...prev, open }))}
-        onConfirm={() => {
-          setConfirmDialog((prev) => ({ ...prev, open: false }));
-          executePipeline(confirmDialog.scope, confirmDialog.stageNumber);
-        }}
-        agentCount={agentCount}
-        browserlessCount={browserlessCount}
-        scope={confirmDialog.scope}
-        stageName={confirmDialog.stageName}
-      />
 
       <GateWarningDialog
         open={gateDialog.open}
