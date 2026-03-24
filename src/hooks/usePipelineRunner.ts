@@ -130,6 +130,8 @@ export function usePipelineRunner(pageId: string | undefined, onComplete?: () =>
       for (const agent of agentsToRun) {
         if (cancelledRef.current) break;
 
+        let shouldStopDispatching = false;
+
         setState((prev) => ({
           ...prev,
           currentAgentName: agent.name,
@@ -149,12 +151,39 @@ export function usePipelineRunner(pageId: string | undefined, onComplete?: () =>
             }
           );
 
-          await res.json(); // consume response
+          const result = await res.json().catch(() => ({} as Record<string, unknown>));
+
+          if (!res.ok) {
+            const errorMessage =
+              typeof result.error === "string"
+                ? result.error
+                : `Agent ${agent.agent_number} failed`;
+
+            const isLowCredits =
+              res.status === 402 ||
+              result.error_code === "anthropic_low_credits" ||
+              /credit balance is too low|credits are too low/i.test(errorMessage);
+
+            console.error(
+              `Agent ${agent.agent_number} (${agent.name}) failed:`,
+              errorMessage
+            );
+
+            if (isLowCredits) {
+              toast.error("AI provider credits are depleted. Please top up billing and retry.");
+              shouldStopDispatching = true;
+            }
+          }
         } catch (err) {
           console.error(`Agent ${agent.agent_number} (${agent.name}) error:`, err);
         }
 
         completed++;
+
+        if (shouldStopDispatching) {
+          cancelledRef.current = true;
+          break;
+        }
 
         // 5-second delay between agents (rate limit protection for Tier 1 Anthropic), skip after last
         if (completed < agentsToRun.length && !cancelledRef.current) {
