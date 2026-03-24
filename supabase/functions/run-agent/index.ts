@@ -18,6 +18,67 @@ const MODEL_MAP: Record<string, string> = {
 // Agents that need old_url content
 const MIGRATION_AGENTS = [1, 4];
 
+// Agents that need class attributes preserved during HTML cleaning
+const PRESERVE_CLASSES_AGENTS = [9, 14];
+
+// Tracking script patterns to preserve during cleaning
+const TRACKING_SCRIPT_PATTERNS = [
+  "gtm", "dataLayer", "pys", "PixelYourSite", "pixelyoursite",
+  "hsq", "hs-scripts", "ld+json", "application/ld+json",
+];
+
+/**
+ * Clean raw HTML to reduce token usage while preserving content signals.
+ * Strips CSS, most scripts, comments, SVGs, data-* attrs, and whitespace.
+ */
+function cleanHtmlForAgent(rawHtml: string, preserveClasses = false): string {
+  let html = rawHtml;
+
+  // 1. Remove all <style> tags and contents
+  html = html.replace(/<style[\s\S]*?<\/style>/gi, "");
+
+  // 2. Remove <script> tags EXCEPT tracking/structured data scripts
+  html = html.replace(/<script[\s\S]*?<\/script>/gi, (match) => {
+    const lower = match.toLowerCase();
+    for (const pattern of TRACKING_SCRIPT_PATTERNS) {
+      if (lower.includes(pattern)) return match;
+    }
+    return "";
+  });
+
+  // 3. Remove HTML comments
+  html = html.replace(/<!--[\s\S]*?-->/g, "");
+
+  // 4. Remove <link rel="stylesheet"> tags
+  html = html.replace(/<link\s[^>]*rel\s*=\s*["']stylesheet["'][^>]*\/?>/gi, "");
+
+  // 5. Remove all <svg> blocks
+  html = html.replace(/<svg[\s\S]*?<\/svg>/gi, "");
+
+  // 6. Remove all data-* attributes
+  html = html.replace(/\s+data-[a-z0-9_-]+\s*=\s*"[^"]*"/gi, "");
+  html = html.replace(/\s+data-[a-z0-9_-]+\s*=\s*'[^']*'/gi, "");
+  html = html.replace(/\s+data-[a-z0-9_-]+(?=[\s>])/gi, "");
+
+  // 7. Remove class attributes (unless preserveClasses)
+  if (!preserveClasses) {
+    html = html.replace(/\s+class\s*=\s*"[^"]*"/gi, "");
+    html = html.replace(/\s+class\s*=\s*'[^']*'/gi, "");
+  }
+
+  // 8. Collapse whitespace
+  html = html.replace(/\s{2,}/g, " ");
+
+  // 9. Middle-truncate if still over 120K chars
+  const MAX_CHARS = 120_000;
+  if (html.length > MAX_CHARS) {
+    const half = MAX_CHARS / 2;
+    html = html.slice(0, half) + "\n[... HTML truncated for length ...]\n" + html.slice(-half);
+  }
+
+  return html;
+}
+
 // Agent → browserless actions mapping (PRD Section 22)
 const BROWSERLESS_ACTIONS: Record<number, string[]> = {
   9: ["screenshot", "rendered_html"],
@@ -438,6 +499,7 @@ Deno.serve(async (req) => {
       let content: { html: string; error?: string };
       let oldContent: { html: string; error?: string } | undefined;
       let browserlessData: Record<string, unknown> | undefined;
+      const shouldPreserveClasses = PRESERVE_CLASSES_AGENTS.includes(agent.agent_number);
 
       if (agent.requires_browserless) {
         const actions =
@@ -448,10 +510,17 @@ Deno.serve(async (req) => {
           page.new_url,
           actions
         );
-        // Also get raw HTML
+        // Also get raw HTML (cleaned)
         content = await fetchContent(supabaseUrl, token, page.new_url);
       } else {
         content = await fetchContent(supabaseUrl, token, page.new_url);
+      }
+
+      // Clean raw HTML for non-browserless content
+      if (content.html) {
+        const beforeLen = content.html.length;
+        content.html = cleanHtmlForAgent(content.html, shouldPreserveClasses);
+        console.log(`HTML cleaned: ${beforeLen.toLocaleString()} → ${content.html.length.toLocaleString()} chars (agent ${agent.agent_number})`);
       }
 
       // Migration agents: also fetch old URL
@@ -460,6 +529,11 @@ Deno.serve(async (req) => {
         page.old_url
       ) {
         oldContent = await fetchContent(supabaseUrl, token, page.old_url);
+        if (oldContent?.html) {
+          const beforeLen = oldContent.html.length;
+          oldContent.html = cleanHtmlForAgent(oldContent.html, shouldPreserveClasses);
+          console.log(`Old HTML cleaned: ${beforeLen.toLocaleString()} → ${oldContent.html.length.toLocaleString()} chars`);
+        }
       }
 
       // Build user message
