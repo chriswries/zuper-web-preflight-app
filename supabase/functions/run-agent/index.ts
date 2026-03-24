@@ -112,12 +112,37 @@ function computeSummaryStats(checks: AgentReport["checks"]) {
   };
 }
 
-function injectConfigs(
-  prompt: string,
+// Tracking config keys for Agent 11 — composed into {TRACKING_IDS}
+const TRACKING_CONFIG_KEYS = [
+  { key: "gtm_container_id", label: "GTM Container ID" },
+  { key: "ga4_measurement_id", label: "GA4 Measurement ID" },
+  { key: "meta_pixel_id", label: "Meta Pixel ID" },
+  { key: "linkedin_partner_id", label: "LinkedIn Partner ID" },
+  { key: "hubspot_portal_id", label: "HubSpot Portal ID" },
+];
+
+function composeTrackingIds(
   configs: Array<{ config_key: string; config_value: string }>
 ): string {
+  return TRACKING_CONFIG_KEYS.map((t) => {
+    const val = configs.find((c) => c.config_key === t.key)?.config_value?.trim();
+    return `${t.label}: ${val || "[Not configured]"}`;
+  }).join("\n");
+}
+
+function injectConfigs(
+  prompt: string,
+  configs: Array<{ config_key: string; config_value: string }>,
+  agentNumber?: number
+): string {
   let result = prompt;
-  // Find all {PLACEHOLDER} patterns
+
+  // For Agent 11, compose individual tracking fields into {TRACKING_IDS}
+  if (agentNumber === 11 && result.includes("{TRACKING_IDS}")) {
+    result = result.replace("{TRACKING_IDS}", composeTrackingIds(configs));
+  }
+
+  // Find all remaining {PLACEHOLDER} patterns
   const placeholders = result.match(/\{[A-Z_]+\}/g) || [];
   for (const ph of placeholders) {
     const key = ph.slice(1, -1); // remove braces
