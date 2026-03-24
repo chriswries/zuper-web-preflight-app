@@ -137,7 +137,7 @@ async function callAnthropic(
   userMessage: string,
   retryStrict = false,
   rateLimitRetries = 0
-): Promise<AgentReport> {
+): Promise<{ report: AgentReport; rateLimitRemaining?: number }> {
   const system = retryStrict
     ? systemPrompt +
       "\n\nCRITICAL: You MUST respond with valid JSON only. No other text, no markdown fences, no explanation. Pure JSON."
@@ -163,11 +163,33 @@ async function callAnthropic(
       signal: controller.signal,
     });
 
-    // Handle rate limiting with up to 3 retries (20s, 40s, 60s backoff)
+    // Log rate limit headers on every response
+    const rlRemaining = res.headers.get("x-ratelimit-remaining-requests");
+    const rlLimit = res.headers.get("x-ratelimit-limit-requests");
+    const rlReset = res.headers.get("x-ratelimit-reset-requests");
+    const retryAfter = res.headers.get("retry-after");
+    console.log("Anthropic rate limits:", {
+      remaining: rlRemaining,
+      limit: rlLimit,
+      reset: rlReset,
+      retryAfter,
+      status: res.status,
+    });
+
+    // Handle rate limiting with up to 3 retries using adaptive backoff
     if (res.status === 429) {
       if (rateLimitRetries < 3) {
-        const delayMs = (rateLimitRetries + 1) * 20_000; // 20s, 40s, 60s
-        console.log(`Rate limited (429). Retry ${rateLimitRetries + 1}/3 after ${delayMs / 1000}s`);
+        // Use retry-after header if present, otherwise exponential backoff with jitter
+        let delayMs: number;
+        if (retryAfter) {
+          delayMs = Math.max(parseInt(retryAfter, 10) * 1000, 5000);
+        } else {
+          delayMs = Math.min(
+            20_000 * Math.pow(2, rateLimitRetries) + Math.random() * 5000,
+            90_000
+          );
+        }
+        console.log(`Rate limited (429). Retry ${rateLimitRetries + 1}/3 after ${Math.round(delayMs / 1000)}s`);
         await new Promise((r) => setTimeout(r, delayMs));
         return callAnthropic(apiKey, model, systemPrompt, userMessage, retryStrict, rateLimitRetries + 1);
       }
@@ -207,7 +229,10 @@ async function callAnthropic(
       if (!report.checks || !Array.isArray(report.checks)) {
         throw new Error("Missing checks array");
       }
-      return report;
+      return {
+        report,
+        rateLimitRemaining: rlRemaining ? parseInt(rlRemaining, 10) : undefined,
+      };
     } catch (parseErr) {
       if (!retryStrict) {
         // Retry with stricter prompt (keep same rateLimitRetries count)
@@ -560,7 +585,7 @@ Deno.serve(async (req) => {
 
       // 6. Call Anthropic
       const model = MODEL_MAP[agent.model_tier] || MODEL_MAP.haiku;
-      const report = await callAnthropic(
+      const { report, rateLimitRemaining } = await callAnthropic(
         anthropicKey,
         model,
         systemPrompt,
@@ -614,6 +639,7 @@ Deno.serve(async (req) => {
           summary_stats: summaryStats,
           report,
           page_status: pageStatus,
+          ...(rateLimitRemaining !== undefined && { rate_limit_remaining: rateLimitRemaining }),
         }),
         {
           status: 200,

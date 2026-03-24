@@ -155,6 +155,7 @@ export function usePipelineRunner(pageId: string | undefined, onComplete?: () =>
         const agent = agentsToRun[i];
         let shouldPause = false;
         let detectedPauseReason = "";
+        let lastResult: Record<string, unknown> = {};
 
         setState((prev) => ({
           ...prev,
@@ -178,6 +179,7 @@ export function usePipelineRunner(pageId: string | undefined, onComplete?: () =>
           );
 
           const result = await res.json().catch(() => ({} as Record<string, unknown>));
+          lastResult = result;
 
           if (!res.ok) {
             const errorMessage =
@@ -244,9 +246,28 @@ export function usePipelineRunner(pageId: string | undefined, onComplete?: () =>
 
         completed++;
 
-        // 8-second delay between agents (rate limit protection for Tier 1 Anthropic), skip after last
+        // Adaptive delay based on Anthropic rate limit remaining
         if (completed < agentsToRun.length && !cancelledRef.current) {
-          await new Promise((r) => setTimeout(r, 8000));
+          const rateLimitRemaining = typeof lastResult?.rate_limit_remaining === "number" ? lastResult.rate_limit_remaining as number : undefined;
+          let delayMs: number;
+          if (rateLimitRemaining !== undefined && rateLimitRemaining !== null) {
+            if (rateLimitRemaining > 20) delayMs = 5000;
+            else if (rateLimitRemaining >= 10) delayMs = 10000;
+            else if (rateLimitRemaining >= 1) delayMs = 15000;
+            else delayMs = 20000;
+          } else {
+            delayMs = 20000; // assume near limit if unknown
+          }
+          console.log("Next agent delay:", delayMs, "remaining:", rateLimitRemaining);
+
+          if (delayMs > 10000) {
+            setState((prev) => ({
+              ...prev,
+              currentAgentName: `Waiting for rate limit cooldown... (${completed}/${agentsToRun.length} completed)`,
+            }));
+          }
+
+          await new Promise((r) => setTimeout(r, delayMs));
         }
       }
 
