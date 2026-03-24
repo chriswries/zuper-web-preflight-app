@@ -244,9 +244,28 @@ export function usePipelineRunner(pageId: string | undefined, onComplete?: () =>
 
         completed++;
 
-        // 8-second delay between agents (rate limit protection for Tier 1 Anthropic), skip after last
+        // Adaptive delay based on Anthropic rate limit remaining
         if (completed < agentsToRun.length && !cancelledRef.current) {
-          await new Promise((r) => setTimeout(r, 8000));
+          const rateLimitRemaining = result?.rate_limit_remaining;
+          let delayMs: number;
+          if (rateLimitRemaining !== undefined && rateLimitRemaining !== null) {
+            if (rateLimitRemaining > 20) delayMs = 5000;
+            else if (rateLimitRemaining >= 10) delayMs = 10000;
+            else if (rateLimitRemaining >= 1) delayMs = 15000;
+            else delayMs = 20000;
+          } else {
+            delayMs = 20000; // assume near limit if unknown
+          }
+          console.log("Next agent delay:", delayMs, "remaining:", rateLimitRemaining);
+
+          if (delayMs > 10000) {
+            setState((prev) => ({
+              ...prev,
+              currentAgentName: `Waiting for rate limit cooldown... (${completed}/${agentsToRun.length} completed)`,
+            }));
+          }
+
+          await new Promise((r) => setTimeout(r, delayMs));
         }
       }
 
