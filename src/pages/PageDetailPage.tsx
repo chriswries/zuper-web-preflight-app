@@ -1,9 +1,10 @@
-import { ArrowLeft, Play, RotateCcw, Download, Loader2, ExternalLink, FileText, ChevronDown, Square } from "lucide-react";
+import { ArrowLeft, Play, RotateCcw, Download, Loader2, ExternalLink, FileText, ChevronDown, Square, PauseCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/StatusBadge";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter } from "@/components/ui/alert-dialog";
 import { useNavigate, useParams, useSearchParams, Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -346,10 +347,16 @@ export default function PageDetailPage() {
         </DropdownMenu>
 
         {/* Progress indicator */}
-        {pipeline.isRunning && pipeline.currentAgentName && (
+        {pipeline.isRunning && !pipeline.isPaused && pipeline.currentAgentName && (
           <span className="text-sm text-muted-foreground ml-2">
             <Loader2 className="h-3.5 w-3.5 animate-spin inline mr-1" />
             Running {pipeline.currentAgentName} ({pipeline.completedCount}/{pipeline.totalCount})
+          </span>
+        )}
+        {pipeline.isPaused && (
+          <span className="text-sm text-destructive ml-2">
+            <PauseCircle className="h-3.5 w-3.5 inline mr-1" />
+            Paused — waiting for billing top-up ({pipeline.completedCount}/{pipeline.totalCount} completed)
           </span>
         )}
       </div>
@@ -411,7 +418,31 @@ export default function PageDetailPage() {
         </div>
       </div>
 
-
+      {/* Pipeline Paused Dialog */}
+      <AlertDialog open={pipeline.isPaused}>
+        <AlertDialogContent onEscapeKeyDown={(e) => e.preventDefault()}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Pipeline Paused — Billing Issue</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>{pipeline.pauseReason}</p>
+                <p className="text-sm">
+                  Completed {pipeline.completedCount} of {pipeline.totalCount} agents.
+                  Pipeline will resume from agent <strong>{pipeline.currentAgentName}</strong>.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <Button variant="outline" onClick={pipeline.cancelPipeline}>
+              Stop Pipeline
+            </Button>
+            <Button onClick={pipeline.resumePipeline}>
+              Resume Pipeline
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

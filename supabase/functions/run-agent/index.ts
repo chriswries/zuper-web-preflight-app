@@ -626,14 +626,21 @@ Deno.serve(async (req) => {
       const isTimeout =
         message.includes("abort") || message.includes("AbortError");
       const isLowCredits = /credit balance is too low/i.test(message);
+      const isBrowserlessQuota = /quota exceeded|browser service quota/i.test(message);
 
       const errorMsg = isTimeout
         ? "Agent timed out."
         : isLowCredits
         ? "AI provider credits are too low. Please top up billing and retry."
+        : isBrowserlessQuota
+        ? "Browser service quota exceeded. Please check your Browserless.io billing."
         : message;
-      const errorCode = isLowCredits ? "anthropic_low_credits" : null;
-      const statusCode = isLowCredits ? 402 : 422;
+      const errorCode = isLowCredits
+        ? "anthropic_low_credits"
+        : isBrowserlessQuota
+        ? "browserless_quota_exceeded"
+        : null;
+      const statusCode = isLowCredits ? 402 : isBrowserlessQuota ? 429 : 422;
 
       // Update run with error
       if (runId) {
