@@ -26,11 +26,6 @@ const stages = [
   { number: 6, name: "Security", agents: [15] },
 ];
 
-interface GateWarning {
-  stage_number: number;
-  failed_agents: Array<{ agent_number: number; name: string; status: string }>;
-}
-
 interface AgentReport {
   agent_name: string;
   agent_number: number;
