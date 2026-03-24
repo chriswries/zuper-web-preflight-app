@@ -376,7 +376,7 @@ export default function PageDetailPage() {
         </Button>
         <Button
           variant="outline"
-          onClick={() => openRunDialog("failed")}
+          onClick={() => executePipeline("failed")}
           disabled={isPipelineActive || pipelineRunning || failedCount === 0}
         >
           <RotateCcw className="h-4 w-4 mr-1" />
