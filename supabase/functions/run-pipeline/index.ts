@@ -194,56 +194,8 @@ Deno.serve(async (req) => {
 
     // Execute sequentially with just-in-time queuing
     const results: Array<{ agent_number: number; status: string; duration_ms?: number }> = [];
-    const gateWarnings: GateWarning[] = [];
-    const overrideSet = new Set(override_gates as number[]);
 
     for (const agent of agentsToRun) {
-      // Soft gate check: if this agent's stage > 1, check prior stages
-      if (agent.stage_number > 1 && scope !== "stage") {
-        const priorStages = STAGES.filter((s) => s.number < agent.stage_number);
-        const failedInPrior: GateWarning["failed_agents"] = [];
-
-        for (const ps of priorStages) {
-          for (const agentNum of ps.agents) {
-            const priorAgent = agents.find((a) => a.agent_number === agentNum);
-            if (!priorAgent || !priorAgent.is_blocking) continue;
-
-            const priorRun = runsByAgentId.get(priorAgent.id);
-            const justRan = results.find((r) => r.agent_number === agentNum);
-            const status = justRan?.status || priorRun?.status;
-
-            if (status === "failed") {
-              failedInPrior.push({
-                agent_number: agentNum,
-                name: priorAgent.name,
-                status: status || "failed",
-              });
-            }
-          }
-        }
-
-        if (failedInPrior.length > 0 && !overrideSet.has(agent.stage_number)) {
-          gateWarnings.push({
-            stage_number: agent.stage_number,
-            failed_agents: failedInPrior,
-          });
-          break;
-        }
-
-        if (failedInPrior.length > 0 && overrideSet.has(agent.stage_number)) {
-          await supabase.from("audit_log").insert({
-            user_id: user.id,
-            action_type: "gate_override",
-            entity_type: "page",
-            entity_id: page_id,
-            details: {
-              stage_number: agent.stage_number,
-              failed_agents: failedInPrior,
-            },
-          });
-        }
-      }
-
       // Just-in-time: set this agent to "queued" right before execution
       const existing = runsByAgentId.get(agent.id);
       if (scope === "failed" && existing) {
