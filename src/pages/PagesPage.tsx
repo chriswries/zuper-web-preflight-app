@@ -1,7 +1,7 @@
-import { FileText, Plus, Filter } from "lucide-react";
+import { FileText, Plus, Filter, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -13,8 +13,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useState } from "react";
 import { format } from "date-fns";
+import { toast } from "sonner";
+import { logAudit } from "@/lib/audit";
 import type { Tables } from "@/integrations/supabase/types";
 
 type PageRow = Tables<"pages"> & { users: { display_name: string | null } | null };
@@ -31,8 +43,12 @@ const PAGE_STATUSES = [
 
 export default function PagesPage() {
   const navigate = useNavigate();
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
+  const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState("all");
+  const [deleteTarget, setDeleteTarget] = useState<PageRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [hasRunningPipeline, setHasRunningPipeline] = useState(false);
 
   const { data: pages, isLoading } = useQuery({
     queryKey: ["pages", statusFilter],
@@ -51,6 +67,69 @@ export default function PagesPage() {
       return data as PageRow[];
     },
   });
+
+  const handleDeleteClick = async (e: React.MouseEvent, page: PageRow) => {
+    e.stopPropagation();
+
+    // Check for running pipeline
+    const { data: activeRuns } = await supabase
+      .from("agent_runs")
+      .select("id")
+      .eq("page_id", page.id)
+      .in("status", ["queued", "running"])
+      .limit(1);
+
+    setHasRunningPipeline((activeRuns?.length ?? 0) > 0);
+    setDeleteTarget(page);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget || !user) return;
+    setDeleting(true);
+
+    try {
+      // 1. Delete all agent_runs for this page
+      const { error: runsErr } = await supabase
+        .from("agent_runs")
+        .delete()
+        .eq("page_id", deleteTarget.id);
+      if (runsErr) throw runsErr;
+
+      // 2. Nullify promoted_page_id on queue items
+      const { error: queueErr } = await supabase
+        .from("page_queue")
+        .update({ promoted_page_id: null })
+        .eq("promoted_page_id", deleteTarget.id);
+      if (queueErr) throw queueErr;
+
+      // 3. Delete the page
+      const { error: pageErr } = await supabase
+        .from("pages")
+        .delete()
+        .eq("id", deleteTarget.id);
+      if (pageErr) throw pageErr;
+
+      // 4. Audit log
+      await logAudit({
+        action_type: "page_deleted",
+        entity_type: "page",
+        entity_id: deleteTarget.id,
+        before_state: {
+          slug: deleteTarget.slug,
+          new_url: deleteTarget.new_url,
+          status: deleteTarget.status,
+        },
+      });
+
+      toast.success("Page deleted");
+      queryClient.invalidateQueries({ queryKey: ["pages"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete page");
+    } finally {
+      setDeleting(false);
+      setDeleteTarget(null);
+    }
+  };
 
   const hasPages = pages && pages.length > 0;
 
@@ -121,6 +200,7 @@ export default function PagesPage() {
                 {isAdmin && (
                   <th className="text-left font-medium text-muted-foreground px-4 py-3">Operator</th>
                 )}
+                <th className="w-10" />
               </tr>
             </thead>
             <tbody>
@@ -152,12 +232,54 @@ export default function PagesPage() {
                       {page.users?.display_name || "—"}
                     </td>
                   )}
+                  <td className="px-4 py-3">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                      onClick={(e) => handleDeleteClick(e, page)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {deleteTarget?.slug || "page"}?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>
+                  This will permanently delete this page and all its agent run data. This cannot be undone.
+                </p>
+                {hasRunningPipeline && (
+                  <p className="text-destructive font-medium">
+                    A pipeline is currently running on this page. Deleting it will abort the run.
+                  </p>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
