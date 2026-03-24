@@ -552,7 +552,8 @@ Deno.serve(async (req) => {
       // 4. Inject configs into prompt
       const systemPrompt = injectConfigs(
         agent.system_prompt || "",
-        configs || []
+        configs || [],
+        agent.agent_number
       );
 
       if (!systemPrompt.trim()) {
