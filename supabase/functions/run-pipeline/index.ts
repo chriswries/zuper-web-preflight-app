@@ -1,3 +1,5 @@
+// DEPRECATED: Pipeline orchestration moved to frontend (usePipelineRunner hook).
+// This function is no longer called but preserved for reference.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
