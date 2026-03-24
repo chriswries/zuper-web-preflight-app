@@ -179,6 +179,7 @@ export function usePipelineRunner(pageId: string | undefined, onComplete?: () =>
           );
 
           const result = await res.json().catch(() => ({} as Record<string, unknown>));
+          lastResult = result;
 
           if (!res.ok) {
             const errorMessage =
