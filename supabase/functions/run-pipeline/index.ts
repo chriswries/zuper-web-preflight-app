@@ -90,7 +90,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { page_id, scope = "all", stage_number, override_gates = [] } = await req.json();
+    const { page_id, scope = "all", stage_number } = await req.json();
 
     if (!page_id) {
       return new Response(
