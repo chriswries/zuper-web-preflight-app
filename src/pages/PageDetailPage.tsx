@@ -398,7 +398,7 @@ export default function PageDetailPage() {
                         pageId={id!}
                         pageMode={page.mode}
                         isPipelineActive={isPipelineActive}
-                        pipelineRunning={pipelineRunning}
+                        pipelineRunning={pipeline.isRunning}
                         rerunningAgent={rerunningAgent}
                         onRerun={rerunSingleAgent}
                       />
