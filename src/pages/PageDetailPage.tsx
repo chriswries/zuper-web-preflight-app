@@ -13,7 +13,6 @@ import { useState, useMemo, useCallback } from "react";
 import { toast } from "sonner";
 import { PipelineStageBar } from "@/components/pipeline/PipelineStageBar";
 
-import { GateWarningDialog } from "@/components/pipeline/GateWarningDialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { exportMarkdown, exportPDF } from "@/lib/export-report";
 import { ExpandableAgentRow } from "@/components/pipeline/ExpandableAgentRow";
@@ -26,11 +25,6 @@ const stages = [
   { number: 5, name: "Performance & Compat.", agents: [12, 13, 14] },
   { number: 6, name: "Security", agents: [15] },
 ];
-
-interface GateWarning {
-  stage_number: number;
-  failed_agents: Array<{ agent_number: number; name: string; status: string }>;
-}
 
 interface AgentReport {
   agent_name: string;
@@ -71,13 +65,6 @@ export default function PageDetailPage() {
   const [rerunningAgent, setRerunningAgent] = useState<string | null>(null);
 
 
-  const [gateDialog, setGateDialog] = useState<{
-    open: boolean;
-    warnings: GateWarning[];
-    scope: RunScope;
-    stageNumber?: number;
-    overrides: number[];
-  }>({ open: false, warnings: [], scope: "all", overrides: [] });
 
   // Load page
   const { data: page, isLoading: pageLoading } = useQuery({
@@ -184,7 +171,6 @@ export default function PageDetailPage() {
   const executePipeline = async (
     scope: RunScope,
     stageNumber?: number,
-    overrideGates: number[] = []
   ) => {
     if (!user || !id) return;
     setPipelineRunning(true);
@@ -205,7 +191,6 @@ export default function PageDetailPage() {
             page_id: id,
             scope,
             stage_number: stageNumber,
-            override_gates: overrideGates,
           }),
         }
       );
@@ -219,20 +204,6 @@ export default function PageDetailPage() {
 
       if (!res.ok) {
         toast.error(result.error || "Pipeline execution failed");
-        return;
-      }
-
-      if (result.gate_warnings?.length > 0) {
-        setGateDialog({
-          open: true,
-          warnings: result.gate_warnings,
-          scope,
-          stageNumber,
-          overrides: [
-            ...overrideGates,
-            ...result.gate_warnings.map((w: GateWarning) => w.stage_number),
-          ],
-        });
         return;
       }
 
@@ -471,17 +442,6 @@ export default function PageDetailPage() {
       </div>
 
 
-      {/* Dialogs */}
-
-      <GateWarningDialog
-        open={gateDialog.open}
-        onOpenChange={(open) => setGateDialog((prev) => ({ ...prev, open }))}
-        onOverride={() => {
-          setGateDialog((prev) => ({ ...prev, open: false }));
-          executePipeline(gateDialog.scope, gateDialog.stageNumber, gateDialog.overrides);
-        }}
-        warnings={gateDialog.warnings}
-      />
     </div>
   );
 }

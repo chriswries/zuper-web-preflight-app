@@ -6,20 +6,6 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const STAGES = [
-  { number: 1, agents: [1, 2, 3, 4] },
-  { number: 2, agents: [5, 6, 7] },
-  { number: 3, agents: [8, 9] },
-  { number: 4, agents: [10, 11] },
-  { number: 5, agents: [12, 13, 14] },
-  { number: 6, agents: [15] },
-];
-
-interface GateWarning {
-  stage_number: number;
-  failed_agents: Array<{ agent_number: number; name: string; status: string }>;
-}
-
 /**
  * Recalculate page status from LATEST run per agent only.
  * Uses highest run_number per agent_id to avoid stale history affecting status.
@@ -95,7 +81,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { page_id, scope = "all", stage_number, override_gates = [] } = await req.json();
+    const { page_id, scope = "all", stage_number } = await req.json();
 
     if (!page_id) {
       return new Response(
@@ -199,56 +185,8 @@ Deno.serve(async (req) => {
 
     // Execute sequentially with just-in-time queuing
     const results: Array<{ agent_number: number; status: string; duration_ms?: number }> = [];
-    const gateWarnings: GateWarning[] = [];
-    const overrideSet = new Set(override_gates as number[]);
 
     for (const agent of agentsToRun) {
-      // Soft gate check: if this agent's stage > 1, check prior stages
-      if (agent.stage_number > 1 && scope !== "stage") {
-        const priorStages = STAGES.filter((s) => s.number < agent.stage_number);
-        const failedInPrior: GateWarning["failed_agents"] = [];
-
-        for (const ps of priorStages) {
-          for (const agentNum of ps.agents) {
-            const priorAgent = agents.find((a) => a.agent_number === agentNum);
-            if (!priorAgent || !priorAgent.is_blocking) continue;
-
-            const priorRun = runsByAgentId.get(priorAgent.id);
-            const justRan = results.find((r) => r.agent_number === agentNum);
-            const status = justRan?.status || priorRun?.status;
-
-            if (status === "failed") {
-              failedInPrior.push({
-                agent_number: agentNum,
-                name: priorAgent.name,
-                status: status || "failed",
-              });
-            }
-          }
-        }
-
-        if (failedInPrior.length > 0 && !overrideSet.has(agent.stage_number)) {
-          gateWarnings.push({
-            stage_number: agent.stage_number,
-            failed_agents: failedInPrior,
-          });
-          break;
-        }
-
-        if (failedInPrior.length > 0 && overrideSet.has(agent.stage_number)) {
-          await supabase.from("audit_log").insert({
-            user_id: user.id,
-            action_type: "gate_override",
-            entity_type: "page",
-            entity_id: page_id,
-            details: {
-              stage_number: agent.stage_number,
-              failed_agents: failedInPrior,
-            },
-          });
-        }
-      }
-
       // Just-in-time: set this agent to "queued" right before execution
       const existing = runsByAgentId.get(agent.id);
       if (scope === "failed" && existing) {
@@ -338,20 +276,17 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Recalculate page status (only if no gate warnings stopped us)
-    if (gateWarnings.length === 0) {
-      const pageStatus = await recalcPageStatus(supabase, page_id);
-      await supabase
-        .from("pages")
-        .update({ status: pageStatus, updated_at: new Date().toISOString() })
-        .eq("id", page_id);
-    }
+    // Recalculate page status
+    const pageStatus = await recalcPageStatus(supabase, page_id);
+    await supabase
+      .from("pages")
+      .update({ status: pageStatus, updated_at: new Date().toISOString() })
+      .eq("id", page_id);
 
     return new Response(
       JSON.stringify({
         success: true,
         results,
-        gate_warnings: gateWarnings,
         total_agents: agentsToRun.length,
         completed: results.length,
       }),
