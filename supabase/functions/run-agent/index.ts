@@ -499,6 +499,7 @@ Deno.serve(async (req) => {
       let content: { html: string; error?: string };
       let oldContent: { html: string; error?: string } | undefined;
       let browserlessData: Record<string, unknown> | undefined;
+      const shouldPreserveClasses = PRESERVE_CLASSES_AGENTS.includes(agent.agent_number);
 
       if (agent.requires_browserless) {
         const actions =
@@ -509,10 +510,17 @@ Deno.serve(async (req) => {
           page.new_url,
           actions
         );
-        // Also get raw HTML
+        // Also get raw HTML (cleaned)
         content = await fetchContent(supabaseUrl, token, page.new_url);
       } else {
         content = await fetchContent(supabaseUrl, token, page.new_url);
+      }
+
+      // Clean raw HTML for non-browserless content
+      if (content.html) {
+        const beforeLen = content.html.length;
+        content.html = cleanHtmlForAgent(content.html, shouldPreserveClasses);
+        console.log(`HTML cleaned: ${beforeLen.toLocaleString()} → ${content.html.length.toLocaleString()} chars (agent ${agent.agent_number})`);
       }
 
       // Migration agents: also fetch old URL
@@ -521,6 +529,11 @@ Deno.serve(async (req) => {
         page.old_url
       ) {
         oldContent = await fetchContent(supabaseUrl, token, page.old_url);
+        if (oldContent?.html) {
+          const beforeLen = oldContent.html.length;
+          oldContent.html = cleanHtmlForAgent(oldContent.html, shouldPreserveClasses);
+          console.log(`Old HTML cleaned: ${beforeLen.toLocaleString()} → ${oldContent.html.length.toLocaleString()} chars`);
+        }
       }
 
       // Build user message
