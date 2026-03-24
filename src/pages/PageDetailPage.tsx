@@ -378,8 +378,8 @@ export default function PageDetailPage() {
                     size="sm"
                     variant="outline"
                     className="h-7 text-xs"
-                    onClick={() => executePipeline("stage", stage.number)}
-                    disabled={isPipelineActive || pipelineRunning}
+                    onClick={() => pipeline.startPipeline("stage", stage.number)}
+                    disabled={isPipelineActive || pipeline.isRunning}
                   >
                     <Play className="h-3 w-3 mr-1" />
                     Run Stage
