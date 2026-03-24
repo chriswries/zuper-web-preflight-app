@@ -207,20 +207,6 @@ export default function PageDetailPage() {
         return;
       }
 
-      if (result.gate_warnings?.length > 0) {
-        setGateDialog({
-          open: true,
-          warnings: result.gate_warnings,
-          scope,
-          stageNumber,
-          overrides: [
-            ...overrideGates,
-            ...result.gate_warnings.map((w: GateWarning) => w.stage_number),
-          ],
-        });
-        return;
-      }
-
       const passed = result.results?.filter((r: { status: string }) => r.status === "passed").length ?? 0;
       const failed = result.results?.filter((r: { status: string }) => r.status === "failed" || r.status === "error").length ?? 0;
 
