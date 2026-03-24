@@ -281,22 +281,32 @@ export default function PageDetailPage() {
       </div>
 
       {/* Action bar */}
-      <div className="flex gap-2">
-        <Button
-          onClick={() => executePipeline("all")}
-          disabled={isPipelineActive || pipelineRunning}
-        >
-          {pipelineRunning ? (
-            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-          ) : (
-            <Play className="h-4 w-4 mr-1" />
-          )}
-          {isPipelineActive ? "QA Running…" : "Run All"}
-        </Button>
+      <div className="flex flex-wrap items-center gap-2">
+        {pipeline.isRunning ? (
+          <Button
+            variant="destructive"
+            onClick={pipeline.cancelPipeline}
+          >
+            <Square className="h-4 w-4 mr-1" />
+            Stop Pipeline
+          </Button>
+        ) : (
+          <Button
+            onClick={() => pipeline.startPipeline("all")}
+            disabled={isPipelineActive}
+          >
+            {isPipelineActive ? (
+              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+            ) : (
+              <Play className="h-4 w-4 mr-1" />
+            )}
+            {isPipelineActive ? "QA Running…" : "Run All"}
+          </Button>
+        )}
         <Button
           variant="outline"
-          onClick={() => executePipeline("failed")}
-          disabled={isPipelineActive || pipelineRunning || failedCount === 0}
+          onClick={() => pipeline.startPipeline("failed")}
+          disabled={isPipelineActive || pipeline.isRunning || failedCount === 0}
         >
           <RotateCcw className="h-4 w-4 mr-1" />
           Re-Run Failed {failedCount > 0 && `(${failedCount})`}
@@ -334,6 +344,14 @@ export default function PageDetailPage() {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        {/* Progress indicator */}
+        {pipeline.isRunning && pipeline.currentAgentName && (
+          <span className="text-sm text-muted-foreground ml-2">
+            <Loader2 className="h-3.5 w-3.5 animate-spin inline mr-1" />
+            Running {pipeline.currentAgentName} ({pipeline.completedCount}/{pipeline.totalCount})
+          </span>
+        )}
       </div>
 
       {/* Pipeline visualization */}
