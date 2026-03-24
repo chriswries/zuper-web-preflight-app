@@ -364,7 +364,7 @@ export default function PageDetailPage() {
       {/* Action bar */}
       <div className="flex gap-2">
         <Button
-          onClick={() => openRunDialog("all")}
+          onClick={() => executePipeline("all")}
           disabled={isPipelineActive || pipelineRunning}
         >
           {pipelineRunning ? (
