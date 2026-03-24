@@ -347,10 +347,16 @@ export default function PageDetailPage() {
         </DropdownMenu>
 
         {/* Progress indicator */}
-        {pipeline.isRunning && pipeline.currentAgentName && (
+        {pipeline.isRunning && !pipeline.isPaused && pipeline.currentAgentName && (
           <span className="text-sm text-muted-foreground ml-2">
             <Loader2 className="h-3.5 w-3.5 animate-spin inline mr-1" />
             Running {pipeline.currentAgentName} ({pipeline.completedCount}/{pipeline.totalCount})
+          </span>
+        )}
+        {pipeline.isPaused && (
+          <span className="text-sm text-amber-600 ml-2">
+            <PauseCircle className="h-3.5 w-3.5 inline mr-1" />
+            Paused — waiting for billing top-up ({pipeline.completedCount}/{pipeline.totalCount} completed)
           </span>
         )}
       </div>
