@@ -163,15 +163,15 @@ async function callAnthropic(
       signal: controller.signal,
     });
 
-    // Handle rate limiting with up to 2 retries (10s, 20s backoff)
+    // Handle rate limiting with up to 3 retries (20s, 40s, 60s backoff)
     if (res.status === 429) {
-      if (rateLimitRetries < 2) {
-        const delayMs = (rateLimitRetries + 1) * 15_000; // 15s, then 30s
-        console.log(`Rate limited (429). Retry ${rateLimitRetries + 1}/2 after ${delayMs / 1000}s`);
+      if (rateLimitRetries < 3) {
+        const delayMs = (rateLimitRetries + 1) * 20_000; // 20s, 40s, 60s
+        console.log(`Rate limited (429). Retry ${rateLimitRetries + 1}/3 after ${delayMs / 1000}s`);
         await new Promise((r) => setTimeout(r, delayMs));
         return callAnthropic(apiKey, model, systemPrompt, userMessage, retryStrict, rateLimitRetries + 1);
       }
-      throw new Error("Anthropic API rate limited after 2 retries");
+      throw new Error("Anthropic API rate limited after 3 retries");
     }
 
     if (!res.ok) {
