@@ -458,17 +458,6 @@ export default function PageDetailPage() {
       </div>
 
 
-      {/* Dialogs */}
-
-      <GateWarningDialog
-        open={gateDialog.open}
-        onOpenChange={(open) => setGateDialog((prev) => ({ ...prev, open }))}
-        onOverride={() => {
-          setGateDialog((prev) => ({ ...prev, open: false }));
-          executePipeline(gateDialog.scope, gateDialog.stageNumber, gateDialog.overrides);
-        }}
-        warnings={gateDialog.warnings}
-      />
     </div>
   );
 }

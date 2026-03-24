@@ -285,20 +285,17 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Recalculate page status (only if no gate warnings stopped us)
-    if (gateWarnings.length === 0) {
-      const pageStatus = await recalcPageStatus(supabase, page_id);
-      await supabase
-        .from("pages")
-        .update({ status: pageStatus, updated_at: new Date().toISOString() })
-        .eq("id", page_id);
-    }
+    // Recalculate page status
+    const pageStatus = await recalcPageStatus(supabase, page_id);
+    await supabase
+      .from("pages")
+      .update({ status: pageStatus, updated_at: new Date().toISOString() })
+      .eq("id", page_id);
 
     return new Response(
       JSON.stringify({
         success: true,
         results,
-        gate_warnings: gateWarnings,
         total_agents: agentsToRun.length,
         completed: results.length,
       }),
