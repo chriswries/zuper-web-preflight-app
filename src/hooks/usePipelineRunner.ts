@@ -244,9 +244,9 @@ export function usePipelineRunner(pageId: string | undefined, onComplete?: () =>
 
         completed++;
 
-        // 3-second delay between agents, skip after last
+        // 5-second delay between agents (rate limit protection for Tier 1 Anthropic), skip after last
         if (completed < agentsToRun.length && !cancelledRef.current) {
-          await new Promise((r) => setTimeout(r, 3000));
+          await new Promise((r) => setTimeout(r, 5000));
         }
       }
 
