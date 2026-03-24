@@ -13,7 +13,6 @@ import { useState, useMemo, useCallback } from "react";
 import { toast } from "sonner";
 import { PipelineStageBar } from "@/components/pipeline/PipelineStageBar";
 
-import { GateWarningDialog } from "@/components/pipeline/GateWarningDialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { exportMarkdown, exportPDF } from "@/lib/export-report";
 import { ExpandableAgentRow } from "@/components/pipeline/ExpandableAgentRow";
