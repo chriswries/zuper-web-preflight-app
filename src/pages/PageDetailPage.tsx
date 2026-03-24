@@ -180,31 +180,6 @@ export default function PageDetailPage() {
     return count;
   }, [latestRunByAgent]);
 
-  const getAgentCounts = (scope: RunScope, stageNumber?: number) => {
-    if (!allAgents || !page) return { agentCount: 0, browserlessCount: 0 };
-    let filtered = allAgents.filter((a) => !(a.migration_only && page.mode === "ongoing"));
-
-    if (scope === "stage" && stageNumber) {
-      filtered = filtered.filter((a) => a.stage_number === stageNumber);
-    } else if (scope === "failed") {
-      const failedAgentIds = new Set<string>();
-      latestRunByAgent.forEach((run) => {
-        if ((run.status === "failed" || run.status === "error") && run.agents?.id) {
-          failedAgentIds.add(run.agents.id);
-        }
-      });
-      filtered = filtered.filter((a) => failedAgentIds.has(a.id));
-    }
-
-    return {
-      agentCount: filtered.length,
-      browserlessCount: filtered.filter((a) => a.requires_browserless).length,
-    };
-  };
-
-  const openRunDialog = (scope: RunScope, stageNumber?: number, stageName?: string) => {
-    setConfirmDialog({ open: true, scope, stageNumber, stageName });
-  };
 
   const executePipeline = async (
     scope: RunScope,
