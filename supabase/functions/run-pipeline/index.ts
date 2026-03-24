@@ -15,11 +15,6 @@ const STAGES = [
   { number: 6, agents: [15] },
 ];
 
-interface GateWarning {
-  stage_number: number;
-  failed_agents: Array<{ agent_number: number; name: string; status: string }>;
-}
-
 /**
  * Recalculate page status from LATEST run per agent only.
  * Uses highest run_number per agent_id to avoid stale history affecting status.
