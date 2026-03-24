@@ -8,6 +8,8 @@ type RunScope = "all" | "stage" | "failed";
 
 interface PipelineState {
   isRunning: boolean;
+  isPaused: boolean;
+  pauseReason: string | null;
   currentAgentName: string | null;
   completedCount: number;
   totalCount: number;
@@ -17,11 +19,29 @@ export function usePipelineRunner(pageId: string | undefined, onComplete?: () =>
   const { user } = useAuth();
   const [state, setState] = useState<PipelineState>({
     isRunning: false,
+    isPaused: false,
+    pauseReason: null,
     currentAgentName: null,
     completedCount: 0,
     totalCount: 0,
   });
   const cancelledRef = useRef(false);
+  const pauseResolverRef = useRef<(() => void) | null>(null);
+
+  const resumePipeline = useCallback(() => {
+    pauseResolverRef.current?.();
+    pauseResolverRef.current = null;
+  }, []);
+
+  const cancelPipeline = useCallback(() => {
+    cancelledRef.current = true;
+    // If paused, unblock the loop so it can break on cancel check
+    if (pauseResolverRef.current) {
+      pauseResolverRef.current();
+      pauseResolverRef.current = null;
+    }
+    toast.info("Pipeline will stop after the current agent completes.");
+  }, []);
 
   const startPipeline = useCallback(async (scope: RunScope, stageNumber?: number) => {
     if (!user || !pageId) return;
@@ -114,6 +134,8 @@ export function usePipelineRunner(pageId: string | undefined, onComplete?: () =>
       // Start
       setState({
         isRunning: true,
+        isPaused: false,
+        pauseReason: null,
         currentAgentName: agentsToRun[0].name,
         completedCount: 0,
         totalCount: agentsToRun.length,
@@ -127,13 +149,17 @@ export function usePipelineRunner(pageId: string | undefined, onComplete?: () =>
 
       let completed = 0;
 
-      for (const agent of agentsToRun) {
+      for (let i = 0; i < agentsToRun.length; i++) {
         if (cancelledRef.current) break;
 
-        let shouldStopDispatching = false;
+        const agent = agentsToRun[i];
+        let shouldPause = false;
+        let detectedPauseReason = "";
 
         setState((prev) => ({
           ...prev,
+          isPaused: false,
+          pauseReason: null,
           currentAgentName: agent.name,
           completedCount: completed,
         }));
@@ -164,30 +190,63 @@ export function usePipelineRunner(pageId: string | undefined, onComplete?: () =>
               result.error_code === "anthropic_low_credits" ||
               /credit balance is too low|credits are too low/i.test(errorMessage);
 
+            const isBrowserlessQuota =
+              res.status === 429 ||
+              result.error_code === "browserless_quota_exceeded" ||
+              /quota exceeded/i.test(errorMessage);
+
             console.error(
               `Agent ${agent.agent_number} (${agent.name}) failed:`,
               errorMessage
             );
 
             if (isLowCredits) {
-              toast.error("AI provider credits are depleted. Please top up billing and retry.");
-              shouldStopDispatching = true;
+              shouldPause = true;
+              detectedPauseReason =
+                "Anthropic API credits are depleted. Please top up your billing at console.anthropic.com, then click Resume to continue.";
+            } else if (isBrowserlessQuota) {
+              shouldPause = true;
+              detectedPauseReason =
+                "Browserless quota exceeded. Please check your Browserless.io billing, then click Resume to continue.";
             }
           }
         } catch (err) {
           console.error(`Agent ${agent.agent_number} (${agent.name}) error:`, err);
         }
 
-        completed++;
+        if (shouldPause) {
+          // Pause: show dialog and wait for user to resume or cancel
+          setState((prev) => ({
+            ...prev,
+            isPaused: true,
+            pauseReason: detectedPauseReason,
+          }));
 
-        if (shouldStopDispatching) {
-          cancelledRef.current = true;
-          break;
+          // Block the loop until user clicks Resume or Stop
+          await new Promise<void>((resolve) => {
+            pauseResolverRef.current = resolve;
+          });
+
+          // After resume, clear pause state
+          setState((prev) => ({
+            ...prev,
+            isPaused: false,
+            pauseReason: null,
+          }));
+
+          // If cancelled while paused, break
+          if (cancelledRef.current) break;
+
+          // Retry the same agent (decrement i so the loop re-runs this index)
+          i--;
+          continue;
         }
 
-        // 5-second delay between agents (rate limit protection for Tier 1 Anthropic), skip after last
+        completed++;
+
+        // 3-second delay between agents, skip after last
         if (completed < agentsToRun.length && !cancelledRef.current) {
-          await new Promise((r) => setTimeout(r, 5000));
+          await new Promise((r) => setTimeout(r, 3000));
         }
       }
 
@@ -205,6 +264,8 @@ export function usePipelineRunner(pageId: string | undefined, onComplete?: () =>
     } finally {
       setState({
         isRunning: false,
+        isPaused: false,
+        pauseReason: null,
         currentAgentName: null,
         completedCount: 0,
         totalCount: 0,
@@ -213,10 +274,5 @@ export function usePipelineRunner(pageId: string | undefined, onComplete?: () =>
     }
   }, [user, pageId, onComplete]);
 
-  const cancelPipeline = useCallback(() => {
-    cancelledRef.current = true;
-    toast.info("Pipeline will stop after the current agent completes.");
-  }, []);
-
-  return { ...state, startPipeline, cancelPipeline };
+  return { ...state, startPipeline, cancelPipeline, resumePipeline };
 }
