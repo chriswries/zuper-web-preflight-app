@@ -418,7 +418,31 @@ export default function PageDetailPage() {
         </div>
       </div>
 
-
+      {/* Pipeline Paused Dialog */}
+      <AlertDialog open={pipeline.isPaused}>
+        <AlertDialogContent onEscapeKeyDown={(e) => e.preventDefault()}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Pipeline Paused — Billing Issue</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>{pipeline.pauseReason}</p>
+                <p className="text-sm">
+                  Completed {pipeline.completedCount} of {pipeline.totalCount} agents.
+                  Pipeline will resume from agent <strong>{pipeline.currentAgentName}</strong>.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <Button variant="outline" onClick={pipeline.cancelPipeline}>
+              Stop Pipeline
+            </Button>
+            <Button onClick={pipeline.resumePipeline}>
+              Resume Pipeline
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
