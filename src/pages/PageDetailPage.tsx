@@ -1,4 +1,4 @@
-import { ArrowLeft, Play, RotateCcw, Download, Loader2, ExternalLink, FileText, ChevronDown, Square } from "lucide-react";
+import { ArrowLeft, Play, RotateCcw, Download, Loader2, ExternalLink, FileText, ChevronDown, Square, PauseCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
