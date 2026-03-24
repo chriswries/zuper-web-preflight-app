@@ -197,38 +197,7 @@ Deno.serve(async (req) => {
       .update({ status: "in_progress", updated_at: new Date().toISOString() })
       .eq("id", page_id);
 
-    // Create new agent_run rows for re-runs (failed scope), or update existing for all/stage
-    const newRunIds = new Map<string, string>(); // agent_id → new run id
-    for (const agent of agentsToRun) {
-      const existing = runsByAgentId.get(agent.id);
-
-      if (scope === "failed" && existing) {
-        // Create a NEW run row with incremented run_number
-        const nextRunNumber = (existing.run_number ?? 1) + 1;
-        const { data: newRun } = await supabase
-          .from("agent_runs")
-          .insert({
-            page_id,
-            agent_id: agent.id,
-            run_number: nextRunNumber,
-            status: "queued",
-          })
-          .select("id")
-          .single();
-        if (newRun) {
-          newRunIds.set(agent.id, newRun.id);
-          // Update our tracking map to point to the new run
-          runsByAgentId.set(agent.id, { id: newRun.id, status: "queued", run_number: nextRunNumber });
-        }
-      } else if (existing) {
-        await supabase
-          .from("agent_runs")
-          .update({ status: "queued", error_message: null })
-          .eq("id", existing.id);
-      }
-    }
-
-    // Execute sequentially
+    // Execute sequentially with just-in-time queuing
     const results: Array<{ agent_number: number; status: string; duration_ms?: number }> = [];
     const gateWarnings: GateWarning[] = [];
     const overrideSet = new Set(override_gates as number[]);
@@ -245,7 +214,6 @@ Deno.serve(async (req) => {
             if (!priorAgent || !priorAgent.is_blocking) continue;
 
             const priorRun = runsByAgentId.get(priorAgent.id);
-            // Also check results we just completed
             const justRan = results.find((r) => r.agent_number === agentNum);
             const status = justRan?.status || priorRun?.status;
 
@@ -260,30 +228,13 @@ Deno.serve(async (req) => {
         }
 
         if (failedInPrior.length > 0 && !overrideSet.has(agent.stage_number)) {
-          // Return gate warning — client must re-call with override
           gateWarnings.push({
             stage_number: agent.stage_number,
             failed_agents: failedInPrior,
           });
-
-          // Skip remaining agents in this and later stages
-          // Mark them back to not_started
-          const remainingAgents = agentsToRun.filter(
-            (a) => a.stage_number >= agent.stage_number
-          );
-          for (const ra of remainingAgents) {
-            const existing = runsByAgentId.get(ra.id);
-            if (existing) {
-              await supabase
-                .from("agent_runs")
-                .update({ status: "not_started" })
-                .eq("id", existing.id);
-            }
-          }
           break;
         }
 
-        // If overridden, log to audit_log
         if (failedInPrior.length > 0 && overrideSet.has(agent.stage_number)) {
           await supabase.from("audit_log").insert({
             user_id: user.id,
@@ -296,6 +247,30 @@ Deno.serve(async (req) => {
             },
           });
         }
+      }
+
+      // Just-in-time: set this agent to "queued" right before execution
+      const existing = runsByAgentId.get(agent.id);
+      if (scope === "failed" && existing) {
+        const nextRunNumber = (existing.run_number ?? 1) + 1;
+        const { data: newRun } = await supabase
+          .from("agent_runs")
+          .insert({
+            page_id,
+            agent_id: agent.id,
+            run_number: nextRunNumber,
+            status: "queued",
+          })
+          .select("id")
+          .single();
+        if (newRun) {
+          runsByAgentId.set(agent.id, { id: newRun.id, status: "queued", run_number: nextRunNumber });
+        }
+      } else if (existing) {
+        await supabase
+          .from("agent_runs")
+          .update({ status: "queued", error_message: null })
+          .eq("id", existing.id);
       }
 
       // Call run-agent
@@ -319,7 +294,7 @@ Deno.serve(async (req) => {
         });
 
         // Throttle to avoid Anthropic rate limits (Tier 1 = 50 RPM)
-        await new Promise((r) => setTimeout(r, 4000));
+        await new Promise((r) => setTimeout(r, 3000));
 
         // Update our local tracking
         const existing = runsByAgentId.get(agent.id);
