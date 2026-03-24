@@ -115,7 +115,7 @@ export default function PageDetailPage() {
       return data as unknown as AgentRunRow[];
     },
     enabled: !!id,
-    refetchInterval: pipeline.isRunning || isPipelineActive ? 2000 : false,
+    refetchInterval: pipeline.isRunning ? 2000 : false,
   });
 
   // Latest run per agent_number (for main display + status)
