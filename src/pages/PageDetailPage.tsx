@@ -171,7 +171,6 @@ export default function PageDetailPage() {
   const executePipeline = async (
     scope: RunScope,
     stageNumber?: number,
-    overrideGates: number[] = []
   ) => {
     if (!user || !id) return;
     setPipelineRunning(true);
