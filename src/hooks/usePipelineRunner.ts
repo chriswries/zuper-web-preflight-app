@@ -163,7 +163,7 @@ export function usePipelineRunner(pageId: string | undefined, onComplete?: () =>
       }
 
       // Recalculate page status
-      const newStatus = await recalcPageStatus(pageId);
+      const newStatus = await recalcPageStatus(pageId) as "pending" | "in_progress" | "passed" | "failed" | "passed_with_warnings" | "archived";
       await supabase
         .from("pages")
         .update({ status: newStatus, updated_at: new Date().toISOString() })
