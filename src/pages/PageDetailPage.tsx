@@ -354,7 +354,7 @@ export default function PageDetailPage() {
           </span>
         )}
         {pipeline.isPaused && (
-          <span className="text-sm text-amber-600 ml-2">
+          <span className="text-sm text-destructive ml-2">
             <PauseCircle className="h-3.5 w-3.5 inline mr-1" />
             Paused — waiting for billing top-up ({pipeline.completedCount}/{pipeline.totalCount} completed)
           </span>
