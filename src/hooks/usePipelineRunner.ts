@@ -248,7 +248,7 @@ export function usePipelineRunner(pageId: string | undefined, onComplete?: () =>
 
         // Adaptive delay based on Anthropic rate limit remaining
         if (completed < agentsToRun.length && !cancelledRef.current) {
-          const rateLimitRemaining = result?.rate_limit_remaining;
+          const rateLimitRemaining = lastResult?.rate_limit_remaining;
           let delayMs: number;
           if (rateLimitRemaining !== undefined && rateLimitRemaining !== null) {
             if (rateLimitRemaining > 20) delayMs = 5000;
