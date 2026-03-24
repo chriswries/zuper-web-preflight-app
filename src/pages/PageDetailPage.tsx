@@ -61,7 +61,13 @@ export default function PageDetailPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  const [pipelineRunning, setPipelineRunning] = useState(false);
+  const invalidateQueries = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["agent-runs", id] });
+    queryClient.invalidateQueries({ queryKey: ["page", id] });
+  }, [queryClient, id]);
+
+  const pipeline = usePipelineRunner(id, invalidateQueries);
+
   const [rerunningAgent, setRerunningAgent] = useState<string | null>(null);
 
 
