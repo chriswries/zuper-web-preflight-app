@@ -318,8 +318,8 @@ Deno.serve(async (req) => {
           duration_ms: result.duration_ms,
         });
 
-        // Throttle to avoid Anthropic rate limits
-        await new Promise((r) => setTimeout(r, 2000));
+        // Throttle to avoid Anthropic rate limits (Tier 1 = 50 RPM)
+        await new Promise((r) => setTimeout(r, 4000));
 
         // Update our local tracking
         const existing = runsByAgentId.get(agent.id);
