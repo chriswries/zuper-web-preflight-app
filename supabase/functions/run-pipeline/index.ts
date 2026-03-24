@@ -249,7 +249,7 @@ Deno.serve(async (req) => {
             const justRan = results.find((r) => r.agent_number === agentNum);
             const status = justRan?.status || priorRun?.status;
 
-            if (status === "failed" || status === "error") {
+            if (status === "failed") {
               failedInPrior.push({
                 agent_number: agentNum,
                 name: priorAgent.name,
