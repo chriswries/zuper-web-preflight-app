@@ -176,7 +176,21 @@ async function callAnthropic(
 
     if (!res.ok) {
       const errText = await res.text();
-      throw new Error(`Anthropic API error [${res.status}]: ${errText}`);
+
+      let providerMessage = errText;
+      try {
+        const parsed = JSON.parse(errText);
+        providerMessage =
+          parsed?.error?.message ||
+          parsed?.message ||
+          errText;
+      } catch {
+        // Keep raw text when provider response isn't JSON
+      }
+
+      throw new Error(
+        `Anthropic API error [${res.status}]: ${providerMessage}`
+      );
     }
 
     const data = await res.json();
@@ -611,8 +625,15 @@ Deno.serve(async (req) => {
       const durationMs = Date.now() - startTime;
       const isTimeout =
         message.includes("abort") || message.includes("AbortError");
+      const isLowCredits = /credit balance is too low/i.test(message);
 
-      const errorMsg = isTimeout ? "Agent timed out." : message;
+      const errorMsg = isTimeout
+        ? "Agent timed out."
+        : isLowCredits
+        ? "AI provider credits are too low. Please top up billing and retry."
+        : message;
+      const errorCode = isLowCredits ? "anthropic_low_credits" : null;
+      const statusCode = isLowCredits ? 402 : 422;
 
       // Update run with error
       if (runId) {
@@ -638,9 +659,14 @@ Deno.serve(async (req) => {
       }
 
       return new Response(
-        JSON.stringify({ error: errorMsg, run_id: runId, page_status: pageStatus }),
+        JSON.stringify({
+          error: errorMsg,
+          error_code: errorCode,
+          run_id: runId,
+          page_status: pageStatus,
+        }),
         {
-          status: 422,
+          status: statusCode,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
       );
