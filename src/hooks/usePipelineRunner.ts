@@ -155,6 +155,7 @@ export function usePipelineRunner(pageId: string | undefined, onComplete?: () =>
         const agent = agentsToRun[i];
         let shouldPause = false;
         let detectedPauseReason = "";
+        let lastResult: Record<string, unknown> = {};
 
         setState((prev) => ({
           ...prev,
