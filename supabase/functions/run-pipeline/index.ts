@@ -6,15 +6,6 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const STAGES = [
-  { number: 1, agents: [1, 2, 3, 4] },
-  { number: 2, agents: [5, 6, 7] },
-  { number: 3, agents: [8, 9] },
-  { number: 4, agents: [10, 11] },
-  { number: 5, agents: [12, 13, 14] },
-  { number: 6, agents: [15] },
-];
-
 /**
  * Recalculate page status from LATEST run per agent only.
  * Uses highest run_number per agent_id to avoid stale history affecting status.
