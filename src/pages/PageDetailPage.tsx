@@ -12,7 +12,7 @@ import { format } from "date-fns";
 import { useState, useMemo, useCallback } from "react";
 import { toast } from "sonner";
 import { PipelineStageBar } from "@/components/pipeline/PipelineStageBar";
-import { RunPipelineDialog } from "@/components/pipeline/RunPipelineDialog";
+
 import { GateWarningDialog } from "@/components/pipeline/GateWarningDialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { exportMarkdown, exportPDF } from "@/lib/export-report";
