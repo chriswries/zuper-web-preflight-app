@@ -70,13 +70,6 @@ export default function PageDetailPage() {
   const [pipelineRunning, setPipelineRunning] = useState(false);
   const [rerunningAgent, setRerunningAgent] = useState<string | null>(null);
 
-  // Dialog state
-  const [confirmDialog, setConfirmDialog] = useState<{
-    open: boolean;
-    scope: RunScope;
-    stageNumber?: number;
-    stageName?: string;
-  }>({ open: false, scope: "all" });
 
   const [gateDialog, setGateDialog] = useState<{
     open: boolean;
