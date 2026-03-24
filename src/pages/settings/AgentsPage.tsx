@@ -1,3 +1,4 @@
+import TrackingConfigTab from "@/components/settings/TrackingConfigTab";
 import { Bot, Loader2, Save, AlertCircle, ChevronRight, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -139,7 +140,8 @@ function AgentConfigPanel({
   const [isActive, setIsActive] = useState(agent.is_active);
   const [saving, setSaving] = useState(false);
   const configDef = CONFIGURABLE_AGENTS[agent.agent_number];
-  const hasConfigTab = !!configDef;
+  const isTrackingAgent = agent.agent_number === TRACKING_CONFIG_AGENT;
+  const hasConfigTab = !!configDef || isTrackingAgent;
 
   useEffect(() => {
     setPrompt(agent.system_prompt ?? "");
@@ -247,7 +249,11 @@ function AgentConfigPanel({
 
           {hasConfigTab && (
             <TabsContent value="config" className="mt-4">
-              <AgentConfigTab agentId={agent.id} agentNumber={agent.agent_number} config={configDef!} />
+              {isTrackingAgent ? (
+                <TrackingConfigTab agentId={agent.id} />
+              ) : (
+                <AgentConfigTab agentId={agent.id} agentNumber={agent.agent_number} config={configDef!} />
+              )}
             </TabsContent>
           )}
         </Tabs>
