@@ -180,7 +180,6 @@ export default function PageDetailPage() {
   const rerunSingleAgent = useCallback(async (agentId: string, agentNumber: number) => {
     if (!user || !id) return;
     setRerunningAgent(agentId);
-    setPipelineRunning(true);
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -212,11 +211,9 @@ export default function PageDetailPage() {
       toast.error(err instanceof Error ? err.message : "Re-run failed");
     } finally {
       setRerunningAgent(null);
-      setPipelineRunning(false);
-      queryClient.invalidateQueries({ queryKey: ["agent-runs", id] });
-      queryClient.invalidateQueries({ queryKey: ["page", id] });
+      invalidateQueries();
     }
-  }, [user, id, queryClient]);
+  }, [user, id, invalidateQueries]);
 
 
   if (pageLoading) {
