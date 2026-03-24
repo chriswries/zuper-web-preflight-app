@@ -309,10 +309,6 @@ export default function PageDetailPage() {
     );
   }
 
-  const { agentCount, browserlessCount } = getAgentCounts(
-    confirmDialog.scope,
-    confirmDialog.stageNumber
-  );
 
   const fromQueue = searchParams.get("from") === "queue";
 
