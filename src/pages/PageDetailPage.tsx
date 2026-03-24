@@ -476,18 +476,6 @@ export default function PageDetailPage() {
 
 
       {/* Dialogs */}
-      <RunPipelineDialog
-        open={confirmDialog.open}
-        onOpenChange={(open) => setConfirmDialog((prev) => ({ ...prev, open }))}
-        onConfirm={() => {
-          setConfirmDialog((prev) => ({ ...prev, open: false }));
-          executePipeline(confirmDialog.scope, confirmDialog.stageNumber);
-        }}
-        agentCount={agentCount}
-        browserlessCount={browserlessCount}
-        scope={confirmDialog.scope}
-        stageName={confirmDialog.stageName}
-      />
 
       <GateWarningDialog
         open={gateDialog.open}
