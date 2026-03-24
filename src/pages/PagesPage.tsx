@@ -111,11 +111,10 @@ export default function PagesPage() {
 
       // 4. Audit log
       await logAudit({
-        userId: user.id,
-        actionType: "page_deleted",
-        entityType: "page",
-        entityId: deleteTarget.id,
-        beforeState: {
+        action_type: "page_deleted",
+        entity_type: "page",
+        entity_id: deleteTarget.id,
+        before_state: {
           slug: deleteTarget.slug,
           new_url: deleteTarget.new_url,
           status: deleteTarget.status,
