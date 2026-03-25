@@ -37,6 +37,20 @@ export default function LoginPage() {
 
     try {
       if (isSignUp) {
+        // Double-check domain restriction
+        if (!email.toLowerCase().endsWith("@zuper.co")) {
+          setDomainError("Only @zuper.co email addresses can self-register. Contact an admin for an invitation.");
+          // Log rejection
+          try {
+            const domain = email.split("@")[1] || "unknown";
+            await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/log-signup-rejection`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email_domain: domain }),
+            });
+          } catch { /* best-effort */ }
+          return;
+        }
         const { error } = await signUp(email, password, displayName);
         if (error) {
           setError(error);
