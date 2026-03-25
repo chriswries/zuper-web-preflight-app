@@ -16,6 +16,15 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [signUpSuccess, setSignUpSuccess] = useState(false);
+  const [domainError, setDomainError] = useState<string | null>(null);
+
+  const validateDomain = (emailValue: string) => {
+    if (isSignUp && emailValue && !emailValue.toLowerCase().endsWith("@zuper.co")) {
+      setDomainError("Only @zuper.co email addresses can self-register. Contact an admin for an invitation.");
+    } else {
+      setDomainError(null);
+    }
+  };
 
   if (!loading && user) {
     return <Navigate to="/pages" replace />;
@@ -28,6 +37,20 @@ export default function LoginPage() {
 
     try {
       if (isSignUp) {
+        // Double-check domain restriction
+        if (!email.toLowerCase().endsWith("@zuper.co")) {
+          setDomainError("Only @zuper.co email addresses can self-register. Contact an admin for an invitation.");
+          // Log rejection
+          try {
+            const domain = email.split("@")[1] || "unknown";
+            await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/log-signup-rejection`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email_domain: domain }),
+            });
+          } catch { /* best-effort */ }
+          return;
+        }
         const { error } = await signUp(email, password, displayName);
         if (error) {
           setError(error);
@@ -106,9 +129,15 @@ export default function LoginPage() {
                 type="email"
                 placeholder="you@zuper.co"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  validateDomain(e.target.value);
+                }}
                 required
               />
+              {domainError && (
+                <p className="text-xs text-destructive">{domainError}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
@@ -122,7 +151,7 @@ export default function LoginPage() {
                 minLength={6}
               />
             </div>
-            <Button className="w-full" type="submit" disabled={submitting}>
+            <Button className="w-full" type="submit" disabled={submitting || (isSignUp && !!domainError)}>
               {submitting ? "Please wait…" : isSignUp ? "Create account" : "Sign in"}
             </Button>
             <p className="text-center text-sm text-muted-foreground">
@@ -130,7 +159,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 className="text-primary hover:underline font-medium"
-                onClick={() => { setIsSignUp(!isSignUp); setError(null); }}
+                onClick={() => { setIsSignUp(!isSignUp); setError(null); setDomainError(null); }}
               >
                 {isSignUp ? "Sign in" : "Sign up"}
               </button>
