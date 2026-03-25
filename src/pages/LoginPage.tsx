@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,18 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [signUpSuccess, setSignUpSuccess] = useState(false);
   const [domainError, setDomainError] = useState<string | null>(null);
+  const [inactiveError, setInactiveError] = useState<string | null>(null);
+
+  // Check for inactive account flag set by AuthContext
+  useEffect(() => {
+    const authError = sessionStorage.getItem("auth_error");
+    if (authError === "account_inactive") {
+      sessionStorage.removeItem("auth_error");
+      setInactiveError(
+        "Your account is inactive. Only @zuper.co email addresses can self-register. If you need access, contact a Zuper admin for an invitation."
+      );
+    }
+  }, []);
 
   const validateDomain = (emailValue: string) => {
     if (isSignUp && emailValue && !emailValue.toLowerCase().endsWith("@zuper.co")) {
@@ -103,6 +115,12 @@ export default function LoginPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            {inactiveError && (
+              <div className="flex items-start gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                {inactiveError}
+              </div>
+            )}
             {error && (
               <div className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
                 <AlertCircle className="h-4 w-4 shrink-0" />
