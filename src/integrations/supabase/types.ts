@@ -351,6 +351,27 @@ export type Database = {
           },
         ]
       }
+      signup_rejections: {
+        Row: {
+          created_at: string
+          email_domain: string
+          id: string
+          reason: string
+        }
+        Insert: {
+          created_at?: string
+          email_domain: string
+          id?: string
+          reason?: string
+        }
+        Update: {
+          created_at?: string
+          email_domain?: string
+          id?: string
+          reason?: string
+        }
+        Relationships: []
+      }
       system_settings: {
         Row: {
           key: string
