@@ -23,13 +23,15 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    await adminClient.from("audit_log").insert({
-      user_id: "00000000-0000-0000-0000-000000000000",
-      action_type: "signup_rejected",
-      entity_type: "user",
-      entity_id: null,
-      details: { email_domain: domain, reason: "Non-zuper.co self-registration attempt" },
+    // Insert into dedicated signup_rejections table (no FK issues)
+    const { error } = await adminClient.from("signup_rejections").insert({
+      email_domain: domain,
+      reason: "Non-zuper.co self-registration attempt",
     });
+
+    if (error) {
+      console.error("Failed to log signup rejection:", error);
+    }
 
     return new Response(JSON.stringify({ logged: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
