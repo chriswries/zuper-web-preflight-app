@@ -166,6 +166,11 @@ export default function UsersPage() {
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
                 />
+                {inviteEmail && !inviteEmail.toLowerCase().endsWith("@zuper.co") && (
+                  <p className="text-xs text-muted-foreground">
+                    External emails (non-zuper.co) will be granted access via invitation only.
+                  </p>
+                )}
               </div>
               <div className="space-y-1">
                 <label className="text-sm font-medium text-foreground">Role</label>

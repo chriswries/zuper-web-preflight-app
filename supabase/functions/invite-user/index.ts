@@ -54,12 +54,13 @@ serve(async (req) => {
     }, { onConflict: "user_id,role" });
 
     // Audit log
+    const isExternal = !email.toLowerCase().endsWith("@zuper.co");
     await adminClient.from("audit_log").insert({
       user_id: user.id,
-      action_type: "invite_user",
+      action_type: isExternal ? "external_user_invited" : "invite_user",
       entity_type: "user",
       entity_id: newUserId,
-      details: { email, role: assignRole },
+      details: { email, role: assignRole, external: isExternal },
     });
 
     return new Response(JSON.stringify({ success: true, user_id: newUserId }), {
