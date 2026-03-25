@@ -17,6 +17,18 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [signUpSuccess, setSignUpSuccess] = useState(false);
   const [domainError, setDomainError] = useState<string | null>(null);
+  const [inactiveError, setInactiveError] = useState<string | null>(null);
+
+  // Check for inactive account flag set by AuthContext
+  useState(() => {
+    const authError = sessionStorage.getItem("auth_error");
+    if (authError === "account_inactive") {
+      sessionStorage.removeItem("auth_error");
+      setInactiveError(
+        "Your account is inactive. Only @zuper.co email addresses can self-register. If you need access, contact a Zuper admin for an invitation."
+      );
+    }
+  });
 
   const validateDomain = (emailValue: string) => {
     if (isSignUp && emailValue && !emailValue.toLowerCase().endsWith("@zuper.co")) {

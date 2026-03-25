@@ -44,6 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (profileData) {
         // Check if user was marked inactive (e.g., non-zuper.co self-signup that bypassed client validation)
         if (!profileData.is_active) {
+          sessionStorage.setItem("auth_error", "account_inactive");
           await supabase.auth.signOut();
           setProfile(null);
           setRole(null);
