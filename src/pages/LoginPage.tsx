@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -20,7 +20,7 @@ export default function LoginPage() {
   const [inactiveError, setInactiveError] = useState<string | null>(null);
 
   // Check for inactive account flag set by AuthContext
-  useState(() => {
+  useEffect(() => {
     const authError = sessionStorage.getItem("auth_error");
     if (authError === "account_inactive") {
       sessionStorage.removeItem("auth_error");
@@ -28,7 +28,7 @@ export default function LoginPage() {
         "Your account is inactive. Only @zuper.co email addresses can self-register. If you need access, contact a Zuper admin for an invitation."
       );
     }
-  });
+  }, []);
 
   const validateDomain = (emailValue: string) => {
     if (isSignUp && emailValue && !emailValue.toLowerCase().endsWith("@zuper.co")) {
