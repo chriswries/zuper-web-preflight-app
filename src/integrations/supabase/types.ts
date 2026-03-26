@@ -231,6 +231,85 @@ export type Database = {
           },
         ]
       }
+      finding_flags: {
+        Row: {
+          admin_notes: string | null
+          admin_status: string
+          agent_name: string
+          agent_number: number
+          agent_run_id: string
+          check_finding: string | null
+          check_name: string
+          check_severity: string
+          created_at: string
+          flagged_by: string
+          id: string
+          page_slug: string | null
+          page_url: string
+          reason: string
+          resolved_at: string | null
+          resolved_by: string | null
+        }
+        Insert: {
+          admin_notes?: string | null
+          admin_status?: string
+          agent_name: string
+          agent_number: number
+          agent_run_id: string
+          check_finding?: string | null
+          check_name: string
+          check_severity: string
+          created_at?: string
+          flagged_by: string
+          id?: string
+          page_slug?: string | null
+          page_url: string
+          reason: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+        }
+        Update: {
+          admin_notes?: string | null
+          admin_status?: string
+          agent_name?: string
+          agent_number?: number
+          agent_run_id?: string
+          check_finding?: string | null
+          check_name?: string
+          check_severity?: string
+          created_at?: string
+          flagged_by?: string
+          id?: string
+          page_slug?: string | null
+          page_url?: string
+          reason?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finding_flags_agent_run_id_fkey"
+            columns: ["agent_run_id"]
+            isOneToOne: false
+            referencedRelation: "agent_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finding_flags_flagged_by_fkey"
+            columns: ["flagged_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finding_flags_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       page_queue: {
         Row: {
           batch_name: string | null

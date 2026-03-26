@@ -20,6 +20,7 @@ import AgentsPage from "./pages/settings/AgentsPage";
 import UsersPage from "./pages/settings/UsersPage";
 import SystemPage from "./pages/settings/SystemPage";
 import NotFound from "./pages/NotFound";
+import FalsePositivesPage from "./pages/settings/FalsePositivesPage";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +46,7 @@ const App = () => (
                 <Route path="settings/agents" element={<RoleGuard requiredRole="admin"><AgentsPage /></RoleGuard>} />
                 <Route path="settings/users" element={<RoleGuard requiredRole="admin"><UsersPage /></RoleGuard>} />
                 <Route path="settings/system" element={<RoleGuard requiredRole="admin"><SystemPage /></RoleGuard>} />
+                <Route path="settings/false-positives" element={<RoleGuard requiredRole="admin"><FalsePositivesPage /></RoleGuard>} />
               </Route>
             </Route>
             <Route path="*" element={<NotFound />} />

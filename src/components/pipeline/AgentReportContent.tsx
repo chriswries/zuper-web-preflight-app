@@ -6,6 +6,8 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { format } from "date-fns";
+import { FlagButton } from "@/components/pipeline/FlagButton";
+import { useFindingFlagsForRun, type FindingFlag } from "@/hooks/useFindingFlags";
 
 const LOWER_CONFIDENCE_AGENTS = [8, 9, 10, 13];
 
@@ -71,7 +73,16 @@ export interface AgentRunRow {
   model_used: string | null;
 }
 
-function CheckRow({ check, isLowerConfidence }: { check: ReportCheck; isLowerConfidence: boolean }) {
+function CheckRow({ check, isLowerConfidence, agentRunId, agentName, agentNumber, pageUrl, pageSlug, existingFlag }: {
+  check: ReportCheck;
+  isLowerConfidence: boolean;
+  agentRunId?: string;
+  agentName?: string;
+  agentNumber?: number;
+  pageUrl?: string;
+  pageSlug?: string;
+  existingFlag?: FindingFlag;
+}) {
   const defaultExpanded = check.status === "failed" || check.status === "warning";
   const [expanded, setExpanded] = useState(defaultExpanded);
   const severityClass = SEVERITY_COLORS[check.severity || "info"] || SEVERITY_COLORS.info;
@@ -94,6 +105,19 @@ function CheckRow({ check, isLowerConfidence }: { check: ReportCheck; isLowerCon
           <Badge variant="outline" className="text-[10px] h-4 border-zuper-amber/40 text-zuper-amber">
             <Eye className="h-2.5 w-2.5 mr-0.5" />Review
           </Badge>
+        )}
+        {(check.status === "failed" || check.status === "warning") && agentRunId && agentName && agentNumber != null && pageUrl && (
+          <FlagButton
+            agentRunId={agentRunId}
+            checkName={check.check_name}
+            checkSeverity={check.severity || "info"}
+            checkFinding={check.finding}
+            agentName={agentName}
+            agentNumber={agentNumber}
+            pageUrl={pageUrl}
+            pageSlug={pageSlug}
+            existingFlag={existingFlag}
+          />
         )}
         <Badge variant={check.status === "passed" ? "secondary" : "destructive"} className="text-[10px] h-4">
           {check.status}
@@ -152,7 +176,7 @@ interface AgentReportContentProps {
   compact?: boolean;
 }
 
-export function AgentReportContent({ run, agentNumber, confidenceTier, allRuns, compact = false }: AgentReportContentProps) {
+export function AgentReportContent({ run, agentNumber, confidenceTier, allRuns, compact = false, agentName, pageUrl, pageSlug }: AgentReportContentProps & { agentName?: string; pageUrl?: string; pageSlug?: string }) {
   const [selectedHistoryRunId, setSelectedHistoryRunId] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
 
@@ -163,6 +187,9 @@ export function AgentReportContent({ run, agentNumber, confidenceTier, allRuns, 
   const report = activeRun.report as unknown as AgentReport | null;
   const stats = activeRun.summary_stats as Record<string, number> | null;
   const isLowerConfidence = LOWER_CONFIDENCE_AGENTS.includes(agentNumber);
+
+  const { data: flagsData } = useFindingFlagsForRun(activeRun.id);
+  const flagsByCheck = new Map((flagsData ?? []).map((f) => [f.check_name, f]));
   const disclaimer = SCOPE_DISCLAIMERS[agentNumber];
   const confidenceInfo = confidenceTier ? CONFIDENCE_LABELS[confidenceTier] : undefined;
 
@@ -227,7 +254,17 @@ export function AgentReportContent({ run, agentNumber, confidenceTier, allRuns, 
       {report.checks && report.checks.length > 0 && (
         <div className="border rounded-md overflow-hidden">
           {report.checks.map((check, i) => (
-            <CheckRow key={i} check={check} isLowerConfidence={isLowerConfidence} />
+            <CheckRow
+              key={i}
+              check={check}
+              isLowerConfidence={isLowerConfidence}
+              agentRunId={activeRun.id}
+              agentName={agentName || report.agent_name}
+              agentNumber={agentNumber}
+              pageUrl={pageUrl || report.page_url}
+              pageSlug={pageSlug}
+              existingFlag={flagsByCheck.get(check.check_name)}
+            />
           ))}
         </div>
       )}
