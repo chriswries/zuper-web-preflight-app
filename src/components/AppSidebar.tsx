@@ -150,7 +150,15 @@ export function AppSidebar() {
                         activeClassName="bg-accent text-primary font-medium"
                       >
                         <item.icon className="h-4 w-4" />
-                        {!collapsed && <span>{item.title}</span>}
+                        {!collapsed && <span className="flex-1">{item.title}</span>}
+                        {!collapsed && "badge" in item && (
+                          <Badge
+                            variant="secondary"
+                            className="ml-auto text-xs h-5 min-w-5 flex items-center justify-center"
+                          >
+                            {String((item as { badge: string }).badge)}
+                          </Badge>
+                        )}
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
