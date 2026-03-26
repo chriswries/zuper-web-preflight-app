@@ -25,7 +25,7 @@ export default function LoginPage() {
     if (authError === "account_inactive") {
       sessionStorage.removeItem("auth_error");
       setInactiveError(
-        "Your account is inactive. Only @zuper.co email addresses can self-register. If you need access, contact a Zuper admin for an invitation."
+        "Your account is not yet active. If you were invited, please check your email for the invitation link. If the issue persists, contact a Zuper admin."
       );
     }
   }, []);

@@ -38,13 +38,13 @@ serve(async (req) => {
 
     const newUserId = inviteData.user.id;
 
-    // Ensure user row exists
+    // Ensure user row exists — explicitly set is_active = true for invited users
     await adminClient.from("users").upsert({
       id: newUserId,
       email,
       display_name: email.split("@")[0],
       is_active: true,
-    }, { onConflict: "id" });
+    }, { onConflict: "id", ignoreDuplicates: false });
 
     // Assign role
     const assignRole = role === "admin" ? "admin" : "operator";
