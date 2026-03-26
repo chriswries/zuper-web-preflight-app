@@ -7,6 +7,7 @@ import {
   Settings,
   ClipboardList,
   LogOut,
+  Flag,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -25,6 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { usePendingFlagCount } from "@/hooks/useFindingFlags";
 
 function useQueueCount() {
   const { data } = useQuery({
@@ -51,7 +53,7 @@ const adminNav = [
   { title: "Audit Log", url: "/audit", icon: ClipboardList },
 ];
 
-const settingsNav = [
+const settingsNavBase = [
   { title: "Agents", url: "/settings/agents", icon: Bot },
   { title: "Users", url: "/settings/users", icon: Users },
   { title: "System", url: "/settings/system", icon: Settings },
@@ -62,6 +64,12 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const { profile, role, isAdmin, signOut } = useAuth();
   const queueCount = useQueueCount();
+  const pendingFlagCount = usePendingFlagCount();
+
+  const settingsNav = [
+    ...settingsNavBase,
+    { title: "False Positives", url: "/settings/false-positives", icon: Flag, badge: String(pendingFlagCount) },
+  ];
 
   const operatorNav = [
     ...operatorNavBase,

@@ -171,6 +171,9 @@ export default function AgentReportPage() {
           agentNumber={agent?.agent_number ?? 0}
           confidenceTier={agent?.confidence_tier}
           allRuns={runs}
+          agentName={agent?.name}
+          pageUrl={page?.new_url}
+          pageSlug={page?.slug}
         />
       )}
 
