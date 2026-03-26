@@ -9,6 +9,7 @@ import { useCreateFlag, useDeleteFlag, type FindingFlag } from "@/hooks/useFindi
 
 interface FlagButtonProps {
   agentRunId: string;
+  pageId: string;
   checkName: string;
   checkSeverity: string;
   checkFinding?: string;
@@ -21,6 +22,7 @@ interface FlagButtonProps {
 
 export function FlagButton({
   agentRunId,
+  pageId,
   checkName,
   checkSeverity,
   checkFinding,
@@ -44,6 +46,7 @@ export function FlagButton({
     createFlag.mutate(
       {
         agent_run_id: agentRunId,
+        page_id: pageId,
         check_name: checkName,
         check_severity: checkSeverity,
         check_finding: checkFinding,
