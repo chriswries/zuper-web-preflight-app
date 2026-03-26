@@ -234,7 +234,7 @@ export default function FalsePositivesPage() {
                       <div>
                         <span className="text-xs font-medium text-muted-foreground">Page: </span>
                         <Link
-                          to={`/pages/${flag.agent_run_id}`}
+                          to={`/pages/${flag.page_id}`}
                           className="text-xs text-primary hover:underline inline-flex items-center gap-1"
                           onClick={(e) => e.stopPropagation()}
                         >

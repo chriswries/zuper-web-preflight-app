@@ -244,6 +244,7 @@ export type Database = {
           created_at: string
           flagged_by: string
           id: string
+          page_id: string
           page_slug: string | null
           page_url: string
           reason: string
@@ -262,6 +263,7 @@ export type Database = {
           created_at?: string
           flagged_by: string
           id?: string
+          page_id: string
           page_slug?: string | null
           page_url: string
           reason: string
@@ -280,6 +282,7 @@ export type Database = {
           created_at?: string
           flagged_by?: string
           id?: string
+          page_id?: string
           page_slug?: string | null
           page_url?: string
           reason?: string
@@ -299,6 +302,13 @@ export type Database = {
             columns: ["flagged_by"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finding_flags_page_id_fkey"
+            columns: ["page_id"]
+            isOneToOne: false
+            referencedRelation: "pages"
             referencedColumns: ["id"]
           },
           {

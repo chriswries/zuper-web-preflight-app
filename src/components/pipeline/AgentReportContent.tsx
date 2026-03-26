@@ -73,10 +73,11 @@ export interface AgentRunRow {
   model_used: string | null;
 }
 
-function CheckRow({ check, isLowerConfidence, agentRunId, agentName, agentNumber, pageUrl, pageSlug, existingFlag }: {
+function CheckRow({ check, isLowerConfidence, agentRunId, pageId, agentName, agentNumber, pageUrl, pageSlug, existingFlag }: {
   check: ReportCheck;
   isLowerConfidence: boolean;
   agentRunId?: string;
+  pageId?: string;
   agentName?: string;
   agentNumber?: number;
   pageUrl?: string;
@@ -106,9 +107,10 @@ function CheckRow({ check, isLowerConfidence, agentRunId, agentName, agentNumber
             <Eye className="h-2.5 w-2.5 mr-0.5" />Review
           </Badge>
         )}
-        {(check.status === "failed" || check.status === "warning") && agentRunId && agentName && agentNumber != null && pageUrl && (
+        {(check.status === "failed" || check.status === "warning") && agentRunId && pageId && agentName && agentNumber != null && pageUrl && (
           <FlagButton
             agentRunId={agentRunId}
+            pageId={pageId}
             checkName={check.check_name}
             checkSeverity={check.severity || "info"}
             checkFinding={check.finding}
@@ -259,6 +261,7 @@ export function AgentReportContent({ run, agentNumber, confidenceTier, allRuns, 
               check={check}
               isLowerConfidence={isLowerConfidence}
               agentRunId={activeRun.id}
+              pageId={activeRun.page_id}
               agentName={agentName || report.agent_name}
               agentNumber={agentNumber}
               pageUrl={pageUrl || report.page_url}

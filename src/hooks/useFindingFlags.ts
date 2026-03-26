@@ -7,6 +7,7 @@ import { toast } from "sonner";
 export interface FindingFlag {
   id: string;
   agent_run_id: string;
+  page_id: string;
   check_name: string;
   check_severity: string;
   check_finding: string | null;
@@ -59,6 +60,7 @@ export function useCreateFlag() {
   return useMutation({
     mutationFn: async (flag: {
       agent_run_id: string;
+      page_id: string;
       check_name: string;
       check_severity: string;
       check_finding?: string;
@@ -90,8 +92,12 @@ export function useCreateFlag() {
       queryClient.invalidateQueries({ queryKey: ["finding-flags-pending-count"] });
       toast.success("Flagged as potential false positive.");
     },
-    onError: (err: Error) => {
-      toast.error(err.message || "Failed to flag finding.");
+    onError: (err: any) => {
+      if (err?.code === "23505") {
+        toast.error("This finding is already flagged.");
+      } else {
+        toast.error(err.message || "Failed to flag finding.");
+      }
     },
   });
 }
