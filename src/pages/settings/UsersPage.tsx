@@ -119,15 +119,22 @@ export default function UsersPage() {
         .eq("id", userId);
       if (error) throw error;
 
+      // When reactivating, ensure user has a role assigned
+      if (!currentlyActive) {
+        await supabase
+          .from("user_roles")
+          .upsert({ user_id: userId, role: "operator" as any }, { onConflict: "user_id,role" });
+      }
+
       await logAudit({
-        action_type: currentlyActive ? "deactivate_user" : "activate_user",
+        action_type: currentlyActive ? "deactivate_user" : "reactivate_user",
         entity_type: "user",
         entity_id: userId,
         before_state: { is_active: currentlyActive },
         after_state: { is_active: !currentlyActive },
       });
 
-      toast.success(currentlyActive ? "User deactivated" : "User activated");
+      toast.success(currentlyActive ? "User deactivated" : "User reactivated");
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed");
