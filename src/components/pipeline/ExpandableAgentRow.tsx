@@ -52,7 +52,7 @@ export function ExpandableAgentRow({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("agents")
-        .select("confidence_tier")
+        .select("confidence_tier, name")
         .eq("id", agentId!)
         .single();
       if (error) throw error;
