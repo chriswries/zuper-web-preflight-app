@@ -404,6 +404,8 @@ export default function PageDetailPage() {
                         allRuns={allRunsByAgent.get(agentNum) ?? []}
                         pageId={id!}
                         pageMode={page.mode}
+                        pageUrl={page.new_url}
+                        pageSlug={page.slug}
                         isPipelineActive={isPipelineActive}
                         pipelineRunning={pipeline.isRunning}
                         rerunningAgent={rerunningAgent}
