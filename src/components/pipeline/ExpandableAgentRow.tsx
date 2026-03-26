@@ -14,6 +14,8 @@ interface ExpandableAgentRowProps {
   allRuns: Array<AgentRunRow & { agents: { id: string; agent_number: number; name: string; is_blocking: boolean } | null }>;
   pageId: string;
   pageMode: string;
+  pageUrl?: string;
+  pageSlug?: string;
   isPipelineActive: boolean;
   pipelineRunning: boolean;
   rerunningAgent: string | null;
@@ -26,6 +28,8 @@ export function ExpandableAgentRow({
   allRuns: parentRuns,
   pageId,
   pageMode,
+  pageUrl,
+  pageSlug,
   isPipelineActive,
   pipelineRunning,
   rerunningAgent,
@@ -166,6 +170,9 @@ export function ExpandableAgentRow({
               agentNumber={agentNum}
               confidenceTier={agentMeta?.confidence_tier}
               allRuns={detailedRuns}
+              agentName={agentMeta?.name}
+              pageUrl={pageUrl}
+              pageSlug={pageSlug}
               compact
             />
           </div>
