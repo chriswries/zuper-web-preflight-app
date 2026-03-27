@@ -319,5 +319,6 @@ export default function PagesPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+    </TooltipProvider>
   );
 }
