@@ -79,11 +79,11 @@ export default function PageDetailPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("pages")
-        .select("*")
+        .select("*, users!pages_created_by_fkey(display_name)")
         .eq("id", id!)
         .single();
       if (error) throw error;
-      return data;
+      return data as any;
     },
     enabled: !!id,
   });
