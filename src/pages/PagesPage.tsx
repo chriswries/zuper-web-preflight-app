@@ -267,7 +267,7 @@ export default function PagesPage() {
                 <th className="text-left font-medium text-muted-foreground px-4 py-3">Status</th>
                 <th className="text-left font-medium text-muted-foreground px-4 py-3">Created</th>
                 <th className="text-left font-medium text-muted-foreground px-4 py-3">Owner</th>
-                <th className="w-10" />
+                <th className="text-right font-medium text-muted-foreground px-4 py-3 w-24">Actions</th>
               </tr>
             </thead>
             <tbody>
