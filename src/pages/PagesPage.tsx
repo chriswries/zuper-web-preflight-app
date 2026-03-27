@@ -46,6 +46,7 @@ export default function PagesPage() {
   const { isAdmin, user } = useAuth();
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState("all");
+  const [ownerFilter, setOwnerFilter] = useState<"all" | "mine">("all");
   const [deleteTarget, setDeleteTarget] = useState<PageRow | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [hasRunningPipeline, setHasRunningPipeline] = useState(false);
@@ -60,6 +61,10 @@ export default function PagesPage() {
 
       if (statusFilter !== "all") {
         query = query.eq("status", statusFilter as "pending" | "in_progress" | "passed" | "failed" | "passed_with_warnings" | "archived");
+      }
+
+      if (ownerFilter === "mine" && user) {
+        query = query.eq("created_by", user.id);
       }
 
       const { data, error } = await query;
