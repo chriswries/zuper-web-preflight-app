@@ -149,7 +149,7 @@ export default function PagesPage() {
       </div>
 
       {/* Filters */}
-      {(hasPages || statusFilter !== "all") && (
+      {(hasPages || statusFilter !== "all" || ownerFilter !== "all") && (
         <div className="flex items-center gap-3">
           <Filter className="h-4 w-4 text-muted-foreground" />
           <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -164,6 +164,20 @@ export default function PagesPage() {
               ))}
             </SelectContent>
           </Select>
+          <div className="flex items-center rounded-md border border-border overflow-hidden text-sm">
+            <button
+              className={`px-3 py-1.5 transition-colors ${ownerFilter === "all" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:text-foreground"}`}
+              onClick={() => setOwnerFilter("all")}
+            >
+              All Pages
+            </button>
+            <button
+              className={`px-3 py-1.5 transition-colors ${ownerFilter === "mine" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:text-foreground"}`}
+              onClick={() => setOwnerFilter("mine")}
+            >
+              My Pages
+            </button>
+          </div>
         </div>
       )}
 
