@@ -1,11 +1,13 @@
-import { FileText, Plus, Filter, Trash2, Loader2 } from "lucide-react";
+import { FileText, Plus, Filter, Trash2, Loader2, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Badge } from "@/components/ui/badge";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import {
   Select,
   SelectContent,
@@ -27,6 +29,8 @@ import { useState } from "react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { logAudit } from "@/lib/audit";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { ReRunFailedButton } from "@/components/pages/ReRunFailedButton";
 import type { Tables } from "@/integrations/supabase/types";
 
 type PageRow = Tables<"pages"> & { users: { display_name: string | null } | null };
@@ -47,6 +51,8 @@ export default function PagesPage() {
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState("all");
   const [ownerFilter, setOwnerFilter] = useState<"all" | "mine">("all");
+  const [searchInput, setSearchInput] = useState("");
+  const debouncedSearch = useDebouncedValue(searchInput, 200);
   const [deleteTarget, setDeleteTarget] = useState<PageRow | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [hasRunningPipeline, setHasRunningPipeline] = useState(false);
@@ -136,9 +142,24 @@ export default function PagesPage() {
     }
   };
 
-  const hasPages = pages && pages.length > 0;
+  // Client-side search filter
+  const filteredPages = (pages ?? []).filter((page) => {
+    if (!debouncedSearch) return true;
+    const q = debouncedSearch.toLowerCase();
+    return (
+      page.new_url?.toLowerCase().includes(q) ||
+      page.old_url?.toLowerCase().includes(q) ||
+      page.slug?.toLowerCase().includes(q) ||
+      page.target_keyword?.toLowerCase().includes(q)
+    );
+  });
+
+  const hasPages = filteredPages.length > 0;
+  const totalPages = pages?.length ?? 0;
+  const isSearchActive = debouncedSearch.length > 0;
 
   return (
+    <TooltipProvider>
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-foreground">Pages</h1>
@@ -149,9 +170,26 @@ export default function PagesPage() {
       </div>
 
       {/* Filters */}
-      {(hasPages || statusFilter !== "all" || ownerFilter !== "all") && (
-        <div className="flex items-center gap-3">
+      {(totalPages > 0 || statusFilter !== "all" || ownerFilter !== "all" || isSearchActive) && (
+        <div className="flex items-center gap-3 flex-wrap">
           <Filter className="h-4 w-4 text-muted-foreground" />
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search URL, slug, keyword…"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="pl-8 pr-8 w-[240px] h-9"
+            />
+            {searchInput && (
+              <button
+                onClick={() => setSearchInput("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-[180px]">
               <SelectValue />
@@ -178,6 +216,11 @@ export default function PagesPage() {
               My Pages
             </button>
           </div>
+          {isSearchActive && (
+            <span className="text-sm text-muted-foreground">
+              {filteredPages.length} of {totalPages} pages
+            </span>
+          )}
         </div>
       )}
 
@@ -189,7 +232,7 @@ export default function PagesPage() {
       )}
 
       {/* Empty state */}
-      {!isLoading && !hasPages && (
+      {!isLoading && totalPages === 0 && !isSearchActive && (
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted mb-4">
             <FileText className="h-7 w-7 text-muted-foreground" />
@@ -205,6 +248,13 @@ export default function PagesPage() {
         </div>
       )}
 
+      {/* No results for search */}
+      {!isLoading && !hasPages && isSearchActive && (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <p className="text-sm text-muted-foreground">No pages match your search.</p>
+        </div>
+      )}
+
       {/* Page list */}
       {!isLoading && hasPages && (
         <div className="rounded-lg border border-border overflow-hidden">
@@ -217,11 +267,11 @@ export default function PagesPage() {
                 <th className="text-left font-medium text-muted-foreground px-4 py-3">Status</th>
                 <th className="text-left font-medium text-muted-foreground px-4 py-3">Created</th>
                 <th className="text-left font-medium text-muted-foreground px-4 py-3">Owner</th>
-                <th className="w-10" />
+                <th className="text-right font-medium text-muted-foreground px-4 py-3 w-24">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {pages!.map((page) => (
+              {filteredPages.map((page) => (
                 <tr
                   key={page.id}
                   className="border-b last:border-b-0 hover:bg-accent/30 cursor-pointer transition-colors"
@@ -247,17 +297,24 @@ export default function PagesPage() {
                   <td className="px-4 py-3 text-muted-foreground">
                     {page.users?.display_name || "—"}
                   </td>
-                  <td className="px-4 py-3">
-                    {(isAdmin || page.created_by === user?.id) && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                        onClick={(e) => handleDeleteClick(e, page)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <ReRunFailedButton
+                        pageId={page.id}
+                        pageSlug={page.slug}
+                        pageStatus={page.status}
+                      />
+                      {(isAdmin || page.created_by === user?.id) && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                          onClick={(e) => handleDeleteClick(e, page)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -298,5 +355,6 @@ export default function PagesPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+    </TooltipProvider>
   );
 }
