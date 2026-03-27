@@ -271,7 +271,7 @@ export default function PagesPage() {
               </tr>
             </thead>
             <tbody>
-              {pages!.map((page) => (
+              {filteredPages.map((page) => (
                 <tr
                   key={page.id}
                   className="border-b last:border-b-0 hover:bg-accent/30 cursor-pointer transition-colors"
@@ -297,17 +297,24 @@ export default function PagesPage() {
                   <td className="px-4 py-3 text-muted-foreground">
                     {page.users?.display_name || "—"}
                   </td>
-                  <td className="px-4 py-3">
-                    {(isAdmin || page.created_by === user?.id) && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                        onClick={(e) => handleDeleteClick(e, page)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <ReRunFailedButton
+                        pageId={page.id}
+                        pageSlug={page.slug}
+                        pageStatus={page.status}
+                      />
+                      {(isAdmin || page.created_by === user?.id) && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                          onClick={(e) => handleDeleteClick(e, page)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
