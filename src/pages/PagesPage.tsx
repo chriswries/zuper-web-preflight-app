@@ -232,7 +232,7 @@ export default function PagesPage() {
       )}
 
       {/* Empty state */}
-      {!isLoading && !hasPages && (
+      {!isLoading && totalPages === 0 && !isSearchActive && (
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted mb-4">
             <FileText className="h-7 w-7 text-muted-foreground" />
@@ -245,6 +245,13 @@ export default function PagesPage() {
             <Plus className="h-4 w-4 mr-1" />
             Add your first page
           </Button>
+        </div>
+      )}
+
+      {/* No results for search */}
+      {!isLoading && !hasPages && isSearchActive && (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <p className="text-sm text-muted-foreground">No pages match your search.</p>
         </div>
       )}
 
