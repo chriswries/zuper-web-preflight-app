@@ -51,6 +51,8 @@ export default function PagesPage() {
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState("all");
   const [ownerFilter, setOwnerFilter] = useState<"all" | "mine">("all");
+  const [searchInput, setSearchInput] = useState("");
+  const debouncedSearch = useDebouncedValue(searchInput, 200);
   const [deleteTarget, setDeleteTarget] = useState<PageRow | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [hasRunningPipeline, setHasRunningPipeline] = useState(false);
