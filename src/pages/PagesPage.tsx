@@ -1,11 +1,13 @@
-import { FileText, Plus, Filter, Trash2, Loader2 } from "lucide-react";
+import { FileText, Plus, Filter, Trash2, Loader2, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Badge } from "@/components/ui/badge";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import {
   Select,
   SelectContent,
@@ -27,6 +29,8 @@ import { useState } from "react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { logAudit } from "@/lib/audit";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { ReRunFailedButton } from "@/components/pages/ReRunFailedButton";
 import type { Tables } from "@/integrations/supabase/types";
 
 type PageRow = Tables<"pages"> & { users: { display_name: string | null } | null };
