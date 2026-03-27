@@ -170,9 +170,26 @@ export default function PagesPage() {
       </div>
 
       {/* Filters */}
-      {(hasPages || statusFilter !== "all" || ownerFilter !== "all") && (
-        <div className="flex items-center gap-3">
+      {(totalPages > 0 || statusFilter !== "all" || ownerFilter !== "all" || isSearchActive) && (
+        <div className="flex items-center gap-3 flex-wrap">
           <Filter className="h-4 w-4 text-muted-foreground" />
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search URL, slug, keyword…"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="pl-8 pr-8 w-[240px] h-9"
+            />
+            {searchInput && (
+              <button
+                onClick={() => setSearchInput("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-[180px]">
               <SelectValue />
@@ -199,6 +216,11 @@ export default function PagesPage() {
               My Pages
             </button>
           </div>
+          {isSearchActive && (
+            <span className="text-sm text-muted-foreground">
+              {filteredPages.length} of {totalPages} pages
+            </span>
+          )}
         </div>
       )}
 
