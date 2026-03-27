@@ -157,6 +157,9 @@ export default function PagesPage() {
   const hasPages = filteredPages.length > 0;
   const totalPages = pages?.length ?? 0;
   const isSearchActive = debouncedSearch.length > 0;
+
+  return (
+    <TooltipProvider>
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-foreground">Pages</h1>
