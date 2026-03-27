@@ -52,7 +52,7 @@ export default function PagesPage() {
   const [hasRunningPipeline, setHasRunningPipeline] = useState(false);
 
   const { data: pages, isLoading } = useQuery({
-    queryKey: ["pages", statusFilter],
+    queryKey: ["pages", statusFilter, ownerFilter],
     queryFn: async () => {
       let query = supabase
         .from("pages")
