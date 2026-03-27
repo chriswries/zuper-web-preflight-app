@@ -216,9 +216,7 @@ export default function PagesPage() {
                 <th className="text-left font-medium text-muted-foreground px-4 py-3">Mode</th>
                 <th className="text-left font-medium text-muted-foreground px-4 py-3">Status</th>
                 <th className="text-left font-medium text-muted-foreground px-4 py-3">Created</th>
-                {isAdmin && (
-                  <th className="text-left font-medium text-muted-foreground px-4 py-3">Operator</th>
-                )}
+                <th className="text-left font-medium text-muted-foreground px-4 py-3">Owner</th>
                 <th className="w-10" />
               </tr>
             </thead>
@@ -246,11 +244,9 @@ export default function PagesPage() {
                   <td className="px-4 py-3 text-muted-foreground">
                     {format(new Date(page.created_at), "MMM d, yyyy")}
                   </td>
-                  {isAdmin && (
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {page.users?.display_name || "—"}
-                    </td>
-                  )}
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {page.users?.display_name || "—"}
+                  </td>
                   <td className="px-4 py-3">
                     <Button
                       variant="ghost"
