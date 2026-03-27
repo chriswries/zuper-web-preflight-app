@@ -248,14 +248,16 @@ export default function PagesPage() {
                     {page.users?.display_name || "—"}
                   </td>
                   <td className="px-4 py-3">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                      onClick={(e) => handleDeleteClick(e, page)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {(isAdmin || page.created_by === user?.id) && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                        onClick={(e) => handleDeleteClick(e, page)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
                   </td>
                 </tr>
               ))}
