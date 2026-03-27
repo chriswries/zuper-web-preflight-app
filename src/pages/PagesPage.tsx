@@ -142,9 +142,21 @@ export default function PagesPage() {
     }
   };
 
-  const hasPages = pages && pages.length > 0;
+  // Client-side search filter
+  const filteredPages = (pages ?? []).filter((page) => {
+    if (!debouncedSearch) return true;
+    const q = debouncedSearch.toLowerCase();
+    return (
+      page.new_url?.toLowerCase().includes(q) ||
+      page.old_url?.toLowerCase().includes(q) ||
+      page.slug?.toLowerCase().includes(q) ||
+      page.target_keyword?.toLowerCase().includes(q)
+    );
+  });
 
-  return (
+  const hasPages = filteredPages.length > 0;
+  const totalPages = pages?.length ?? 0;
+  const isSearchActive = debouncedSearch.length > 0;
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-foreground">Pages</h1>
