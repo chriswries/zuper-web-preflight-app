@@ -262,6 +262,9 @@ export default function PageDetailPage() {
           </div>
           <p className="text-sm text-muted-foreground">
             Added {page.created_at && !isNaN(new Date(page.created_at).getTime()) ? format(new Date(page.created_at), "MMM d, yyyy") : "Unknown"}
+            {page.users?.display_name && (
+              <span> · Owner: {page.users.display_name}</span>
+            )}
           </p>
           {page.mode === "migration" && page.old_url && (
             <div className="flex items-center gap-1 mt-1">
