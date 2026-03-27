@@ -46,12 +46,13 @@ export default function PagesPage() {
   const { isAdmin, user } = useAuth();
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState("all");
+  const [ownerFilter, setOwnerFilter] = useState<"all" | "mine">("all");
   const [deleteTarget, setDeleteTarget] = useState<PageRow | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [hasRunningPipeline, setHasRunningPipeline] = useState(false);
 
   const { data: pages, isLoading } = useQuery({
-    queryKey: ["pages", statusFilter],
+    queryKey: ["pages", statusFilter, ownerFilter],
     queryFn: async () => {
       let query = supabase
         .from("pages")
@@ -60,6 +61,10 @@ export default function PagesPage() {
 
       if (statusFilter !== "all") {
         query = query.eq("status", statusFilter as "pending" | "in_progress" | "passed" | "failed" | "passed_with_warnings" | "archived");
+      }
+
+      if (ownerFilter === "mine" && user) {
+        query = query.eq("created_by", user.id);
       }
 
       const { data, error } = await query;
@@ -144,7 +149,7 @@ export default function PagesPage() {
       </div>
 
       {/* Filters */}
-      {(hasPages || statusFilter !== "all") && (
+      {(hasPages || statusFilter !== "all" || ownerFilter !== "all") && (
         <div className="flex items-center gap-3">
           <Filter className="h-4 w-4 text-muted-foreground" />
           <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -159,6 +164,20 @@ export default function PagesPage() {
               ))}
             </SelectContent>
           </Select>
+          <div className="flex items-center rounded-md border border-border overflow-hidden text-sm">
+            <button
+              className={`px-3 py-1.5 transition-colors ${ownerFilter === "all" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:text-foreground"}`}
+              onClick={() => setOwnerFilter("all")}
+            >
+              All Pages
+            </button>
+            <button
+              className={`px-3 py-1.5 transition-colors ${ownerFilter === "mine" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:text-foreground"}`}
+              onClick={() => setOwnerFilter("mine")}
+            >
+              My Pages
+            </button>
+          </div>
         </div>
       )}
 
@@ -197,9 +216,7 @@ export default function PagesPage() {
                 <th className="text-left font-medium text-muted-foreground px-4 py-3">Mode</th>
                 <th className="text-left font-medium text-muted-foreground px-4 py-3">Status</th>
                 <th className="text-left font-medium text-muted-foreground px-4 py-3">Created</th>
-                {isAdmin && (
-                  <th className="text-left font-medium text-muted-foreground px-4 py-3">Operator</th>
-                )}
+                <th className="text-left font-medium text-muted-foreground px-4 py-3">Owner</th>
                 <th className="w-10" />
               </tr>
             </thead>
@@ -227,11 +244,9 @@ export default function PagesPage() {
                   <td className="px-4 py-3 text-muted-foreground">
                     {format(new Date(page.created_at), "MMM d, yyyy")}
                   </td>
-                  {isAdmin && (
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {page.users?.display_name || "—"}
-                    </td>
-                  )}
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {page.users?.display_name || "—"}
+                  </td>
                   <td className="px-4 py-3">
                     <Button
                       variant="ghost"
