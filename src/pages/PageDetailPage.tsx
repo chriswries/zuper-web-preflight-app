@@ -259,6 +259,11 @@ export default function PageDetailPage() {
             <Badge variant={page.mode === "migration" ? "default" : "secondary"} className="shrink-0">
               {page.mode === "migration" ? "Migration" : "Ongoing"}
             </Badge>
+            {page.pipeline_profile === "blog" && (
+              <Badge className="shrink-0 bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))] border-[hsl(var(--primary))]/20" variant="outline">
+                Blog QA
+              </Badge>
+            )}
           </div>
           <p className="text-sm text-muted-foreground">
             Added {page.created_at && !isNaN(new Date(page.created_at).getTime()) ? format(new Date(page.created_at), "MMM d, yyyy") : "Unknown"}

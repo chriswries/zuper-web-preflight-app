@@ -85,6 +85,9 @@ function SortableQueueRow({
           {item.batch_name && <span>Batch: {item.batch_name}</span>}
           {item.slug && <span>/{item.slug}</span>}
           <span>by {item.creator?.display_name || "—"}</span>
+          {(item as any).pipeline_profile === "blog" && (
+            <Badge variant="outline" className="text-[10px] h-4 bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))] border-[hsl(var(--primary))]/20">Blog</Badge>
+          )}
           {isClaimed && (
             <span className="text-primary font-medium">
               Claimed by {isMyClam ? "you" : item.claimer?.display_name || "—"}
@@ -202,6 +205,7 @@ export default function QueuePage() {
         slug: item.slug,
         targetKeyword: item.target_keyword,
         createdBy: user.id,
+        pipelineProfile: (item as any).pipeline_profile ?? "full",
       });
 
       await supabase
