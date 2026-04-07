@@ -169,6 +169,20 @@ export function AddToQueueModal({ open, onClose, onSuccess }: AddToQueueModalPro
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label>Pipeline Profile</Label>
+                <RadioGroup value={pipelineProfile} onValueChange={(v) => setPipelineProfile(v as "full" | "blog")} className="flex gap-4">
+                  <label htmlFor="q-profile-full" className="flex items-center gap-2 cursor-pointer">
+                    <RadioGroupItem value="full" id="q-profile-full" />
+                    <span className="text-sm">Full Preflight</span>
+                  </label>
+                  <label htmlFor="q-profile-blog" className="flex items-center gap-2 cursor-pointer">
+                    <RadioGroupItem value="blog" id="q-profile-blog" />
+                    <span className="text-sm">Blog QA</span>
+                  </label>
+                </RadioGroup>
+              </div>
+
               <Tabs value={tab} onValueChange={setTab}>
                 <TabsList className="w-full">
                   <TabsTrigger value="paste" className="flex-1">Paste URLs</TabsTrigger>
