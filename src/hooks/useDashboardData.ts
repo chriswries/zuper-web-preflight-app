@@ -150,7 +150,7 @@ export function useDashboardData(dateRange: DateRange) {
   const agentRuns = agentRunsQuery.data ?? [];
   const agents = agentsQuery.data ?? [];
   const queueItems = queueQuery.data ?? [];
-  const baseline = baselineQuery.data ?? 60;
+  const baselines = baselineQuery.data ?? { full: 60, blog: 25 };
   const users = usersQuery.data ?? [];
   const overrides = auditQuery.data ?? [];
 
