@@ -98,11 +98,17 @@ export function useDashboardData(dateRange: DateRange) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("system_settings")
-        .select("value")
-        .eq("key", "baseline_minutes_per_page")
-        .maybeSingle();
+        .select("key, value")
+        .in("key", ["baseline_minutes_per_page", "baseline_minutes_per_page_blog"]);
       if (error) throw error;
-      return data?.value ? parseInt(data.value, 10) : 60;
+      const map: Record<string, number> = {};
+      for (const row of data ?? []) {
+        map[row.key] = parseInt(row.value, 10) || 60;
+      }
+      return {
+        full: map["baseline_minutes_per_page"] ?? 60,
+        blog: map["baseline_minutes_per_page_blog"] ?? 25,
+      };
     },
   });
 
