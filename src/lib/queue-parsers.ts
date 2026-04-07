@@ -5,6 +5,7 @@ export interface ParsedQueueRow {
   oldUrl: string | null;
   slug: string | null;
   targetKeyword: string | null;
+  pipelineProfile: "full" | "blog";
   valid: boolean;
   duplicate: boolean;
   duplicateSource?: "queue" | "pages";
@@ -26,6 +27,7 @@ export function parseMultiLine(text: string): ParsedQueueRow[] {
       oldUrl,
       slug: isValidUrl(newUrl) ? deriveSlug(newUrl) : null,
       targetKeyword: null,
+      pipelineProfile: "full",
       valid: isValidUrl(newUrl) && (!oldUrl || isValidUrl(oldUrl)),
       duplicate: false,
       included: true,
@@ -40,7 +42,7 @@ export function parseCsv(text: string): ParsedQueueRow[] {
   const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   if (lines.length === 0) return [];
 
-  const headerCandidates = ["new_url", "old_url", "slug", "target_keyword"];
+  const headerCandidates = ["new_url", "old_url", "slug", "target_keyword", "pipeline_profile"];
   const firstCols = lines[0].split(",").map((c) => c.trim().toLowerCase().replace(/['"]/g, ""));
   const isHeader = firstCols.some((c) => headerCandidates.includes(c));
 
@@ -51,12 +53,14 @@ export function parseCsv(text: string): ParsedQueueRow[] {
   let oldUrlIdx = 1;
   let slugIdx = 2;
   let kwIdx = 3;
+  let profileIdx = -1;
 
   if (isHeader) {
     newUrlIdx = firstCols.indexOf("new_url");
     oldUrlIdx = firstCols.indexOf("old_url");
     slugIdx = firstCols.indexOf("slug");
     kwIdx = firstCols.indexOf("target_keyword");
+    profileIdx = firstCols.indexOf("pipeline_profile");
     if (newUrlIdx === -1) newUrlIdx = 0; // fallback
   }
 
@@ -66,11 +70,14 @@ export function parseCsv(text: string): ParsedQueueRow[] {
     const oldUrl = oldUrlIdx >= 0 ? cols[oldUrlIdx] || null : null;
     const slug = slugIdx >= 0 ? cols[slugIdx] || null : null;
     const targetKeyword = kwIdx >= 0 ? cols[kwIdx] || null : null;
+    const rawProfile = profileIdx >= 0 ? cols[profileIdx]?.toLowerCase() || "" : "";
+    const pipelineProfile: "full" | "blog" = rawProfile === "blog" ? "blog" : "full";
     return {
       newUrl,
       oldUrl,
       slug: slug || (isValidUrl(newUrl) ? deriveSlug(newUrl) : null),
       targetKeyword,
+      pipelineProfile,
       valid: isValidUrl(newUrl) && (!oldUrl || isValidUrl(oldUrl)),
       duplicate: false,
       included: true,

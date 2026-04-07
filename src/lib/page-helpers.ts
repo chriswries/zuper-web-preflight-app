@@ -31,6 +31,7 @@ interface CreatePageParams {
   targetKeyword?: string | null;
   figmaCompPath?: string | null;
   createdBy: string;
+  pipelineProfile?: "full" | "blog";
 }
 
 /**
@@ -39,6 +40,7 @@ interface CreatePageParams {
  */
 export async function createPageWithRuns(params: CreatePageParams): Promise<string> {
   const isMigration = !!params.oldUrl;
+  const profile = params.pipelineProfile ?? "full";
 
   // 1. Insert the page
   const { data: page, error: pageError } = await supabase
@@ -50,9 +52,10 @@ export async function createPageWithRuns(params: CreatePageParams): Promise<stri
       target_keyword: params.targetKeyword || null,
       figma_comp_path: params.figmaCompPath || null,
       mode: isMigration ? "migration" : "ongoing",
+      pipeline_profile: profile,
       status: "pending",
       created_by: params.createdBy,
-    })
+    } as any)
     .select("id")
     .single();
 
@@ -61,22 +64,22 @@ export async function createPageWithRuns(params: CreatePageParams): Promise<stri
   // 2. Fetch all agents
   const { data: agents, error: agentsError } = await supabase
     .from("agents")
-    .select("id, agent_number, migration_only")
+    .select("id, agent_number, migration_only, skip_in_blog_mode")
     .order("agent_number");
 
   if (agentsError || !agents) throw new Error(agentsError?.message ?? "Failed to fetch agents");
 
   // 3. Create agent_runs
-  const runs = agents.map((agent) => ({
-    page_id: page.id,
-    agent_id: agent.id,
-    run_number: 1,
-    status: (
-      !isMigration && MIGRATION_ONLY_AGENTS.includes(agent.agent_number)
-        ? "skipped"
-        : "not_started"
-    ) as "skipped" | "not_started",
-  }));
+  const runs = agents.map((agent) => {
+    const isMigrationOnlySkipped = !isMigration && MIGRATION_ONLY_AGENTS.includes(agent.agent_number);
+    const isBlogSkipped = profile === "blog" && (agent as any).skip_in_blog_mode;
+    return {
+      page_id: page.id,
+      agent_id: agent.id,
+      run_number: 1,
+      status: (isMigrationOnlySkipped || isBlogSkipped ? "skipped" : "not_started") as "skipped" | "not_started",
+    };
+  });
 
   const { error: runsError } = await supabase.from("agent_runs").insert(runs);
   if (runsError) throw new Error(runsError.message);

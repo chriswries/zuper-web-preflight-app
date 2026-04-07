@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { AlertTriangle, Upload, Loader2 } from "lucide-react";
 import { parseMultiLine, parseCsv, type ParsedQueueRow } from "@/lib/queue-parsers";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,6 +27,7 @@ export function AddToQueueModal({ open, onClose, onSuccess }: AddToQueueModalPro
   const [tab, setTab] = useState("paste");
   const [pasteText, setPasteText] = useState("");
   const [batchName, setBatchName] = useState("");
+  const [pipelineProfile, setPipelineProfile] = useState<"full" | "blog">("full");
   const [rows, setRows] = useState<ParsedQueueRow[]>([]);
   const [step, setStep] = useState<"input" | "preview">("input");
   const [submitting, setSubmitting] = useState(false);
@@ -35,6 +37,7 @@ export function AddToQueueModal({ open, onClose, onSuccess }: AddToQueueModalPro
   const reset = () => {
     setPasteText("");
     setBatchName("");
+    setPipelineProfile("full");
     setRows([]);
     setStep("input");
     setTab("paste");
@@ -131,7 +134,8 @@ export function AddToQueueModal({ open, onClose, onSuccess }: AddToQueueModalPro
         batch_name: batchName.trim() || null,
         sort_order: i,
         status: "queued" as const,
-      }));
+        pipeline_profile: pipelineProfile,
+      } as any));
 
       const { error } = await supabase.from("page_queue").insert(inserts);
       if (error) throw error;
@@ -163,6 +167,20 @@ export function AddToQueueModal({ open, onClose, onSuccess }: AddToQueueModalPro
                   value={batchName}
                   onChange={(e) => setBatchName(e.target.value)}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Pipeline Profile</Label>
+                <RadioGroup value={pipelineProfile} onValueChange={(v) => setPipelineProfile(v as "full" | "blog")} className="flex gap-4">
+                  <label htmlFor="q-profile-full" className="flex items-center gap-2 cursor-pointer">
+                    <RadioGroupItem value="full" id="q-profile-full" />
+                    <span className="text-sm">Full Preflight</span>
+                  </label>
+                  <label htmlFor="q-profile-blog" className="flex items-center gap-2 cursor-pointer">
+                    <RadioGroupItem value="blog" id="q-profile-blog" />
+                    <span className="text-sm">Blog QA</span>
+                  </label>
+                </RadioGroup>
               </div>
 
               <Tabs value={tab} onValueChange={setTab}>
