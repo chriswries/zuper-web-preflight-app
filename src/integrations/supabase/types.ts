@@ -125,6 +125,7 @@ export type Database = {
       agents: {
         Row: {
           agent_number: number
+          blog_system_prompt: string | null
           confidence_tier: Database["public"]["Enums"]["confidence_tier"]
           description: string | null
           id: string
@@ -135,6 +136,7 @@ export type Database = {
           name: string
           processing_model: string | null
           requires_browserless: boolean
+          skip_in_blog_mode: boolean
           sort_order: number
           stage_number: number
           system_prompt: string | null
@@ -143,6 +145,7 @@ export type Database = {
         }
         Insert: {
           agent_number: number
+          blog_system_prompt?: string | null
           confidence_tier?: Database["public"]["Enums"]["confidence_tier"]
           description?: string | null
           id?: string
@@ -153,6 +156,7 @@ export type Database = {
           name: string
           processing_model?: string | null
           requires_browserless?: boolean
+          skip_in_blog_mode?: boolean
           sort_order?: number
           stage_number: number
           system_prompt?: string | null
@@ -161,6 +165,7 @@ export type Database = {
         }
         Update: {
           agent_number?: number
+          blog_system_prompt?: string | null
           confidence_tier?: Database["public"]["Enums"]["confidence_tier"]
           description?: string | null
           id?: string
@@ -171,6 +176,7 @@ export type Database = {
           name?: string
           processing_model?: string | null
           requires_browserless?: boolean
+          skip_in_blog_mode?: boolean
           sort_order?: number
           stage_number?: number
           system_prompt?: string | null
@@ -329,6 +335,7 @@ export type Database = {
           id: string
           new_url: string
           old_url: string | null
+          pipeline_profile: Database["public"]["Enums"]["pipeline_profile"]
           promoted_page_id: string | null
           slug: string | null
           sort_order: number
@@ -344,6 +351,7 @@ export type Database = {
           id?: string
           new_url: string
           old_url?: string | null
+          pipeline_profile?: Database["public"]["Enums"]["pipeline_profile"]
           promoted_page_id?: string | null
           slug?: string | null
           sort_order?: number
@@ -359,6 +367,7 @@ export type Database = {
           id?: string
           new_url?: string
           old_url?: string | null
+          pipeline_profile?: Database["public"]["Enums"]["pipeline_profile"]
           promoted_page_id?: string | null
           slug?: string | null
           sort_order?: number
@@ -399,6 +408,7 @@ export type Database = {
           mode: Database["public"]["Enums"]["page_mode"]
           new_url: string
           old_url: string | null
+          pipeline_profile: Database["public"]["Enums"]["pipeline_profile"]
           slug: string | null
           status: Database["public"]["Enums"]["page_status"]
           target_keyword: string | null
@@ -412,6 +422,7 @@ export type Database = {
           mode?: Database["public"]["Enums"]["page_mode"]
           new_url: string
           old_url?: string | null
+          pipeline_profile?: Database["public"]["Enums"]["pipeline_profile"]
           slug?: string | null
           status?: Database["public"]["Enums"]["page_status"]
           target_keyword?: string | null
@@ -425,6 +436,7 @@ export type Database = {
           mode?: Database["public"]["Enums"]["page_mode"]
           new_url?: string
           old_url?: string | null
+          pipeline_profile?: Database["public"]["Enums"]["pipeline_profile"]
           slug?: string | null
           status?: Database["public"]["Enums"]["page_status"]
           target_keyword?: string | null
@@ -565,6 +577,7 @@ export type Database = {
         | "failed"
         | "passed_with_warnings"
         | "archived"
+      pipeline_profile: "full" | "blog"
       queue_status: "queued" | "claimed" | "promoted" | "skipped"
       run_status:
         | "not_started"
@@ -714,6 +727,7 @@ export const Constants = {
         "passed_with_warnings",
         "archived",
       ],
+      pipeline_profile: ["full", "blog"],
       queue_status: ["queued", "claimed", "promoted", "skipped"],
       run_status: [
         "not_started",
