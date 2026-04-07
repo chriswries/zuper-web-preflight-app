@@ -182,7 +182,7 @@ export default function QueuePage() {
   }, [items]);
 
   const updateQueue = useMutation({
-    mutationFn: async ({ id, updates }: { id: string; updates: Record<string, unknown> }) => {
+    mutationFn: async ({ id, updates }: { id: string; updates: Partial<Tables<"page_queue">> }) => {
       const { error } = await supabase.from("page_queue").update(updates).eq("id", id);
       if (error) throw error;
     },
