@@ -49,7 +49,7 @@ export function useDashboardData(dateRange: DateRange) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("pages")
-        .select("id, status, created_at, created_by")
+        .select("id, status, created_at, created_by, pipeline_profile")
         .gte("created_at", fromISO)
         .lte("created_at", toISO);
       if (error) throw error;
@@ -175,7 +175,7 @@ export function useDashboardData(dateRange: DateRange) {
       const totalAgentDurationMs = pageRuns.reduce((sum, r) => sum + (r.duration_ms ?? 0), 0);
       const attentionMs = Math.max(0, turnaroundMs - totalAgentDurationMs);
       const attentionMinutes = attentionMs / 60000;
-      const pageBaseline = (page as any).pipeline_profile === "blog" ? baselines.blog : baselines.full;
+      const pageBaseline = page.pipeline_profile === "blog" ? baselines.blog : baselines.full;
       totalSavedMinutes += Math.max(0, pageBaseline - attentionMinutes);
     }
     estimatedHoursSaved = totalSavedMinutes / 60;
