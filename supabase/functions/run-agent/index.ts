@@ -549,9 +549,15 @@ Deno.serve(async (req) => {
         .select("config_key, config_value")
         .eq("agent_id", agent_id);
 
-      // 4. Inject configs into prompt
+      // 4. Select prompt based on pipeline profile
+      const isBlogProfile = page.pipeline_profile === "blog";
+      const blogPrompt = agent.blog_system_prompt?.trim();
+      const basePrompt = (isBlogProfile && blogPrompt) ? blogPrompt : (agent.system_prompt || "");
+      const promptVariant = (isBlogProfile && blogPrompt) ? "blog" : "full";
+
+      // 5. Inject configs into prompt
       const systemPrompt = injectConfigs(
-        agent.system_prompt || "",
+        basePrompt,
         configs || [],
         agent.agent_number
       );
@@ -560,7 +566,7 @@ Deno.serve(async (req) => {
         throw new Error("Agent has no system prompt configured");
       }
 
-      // 5. Acquire content
+      console.log(`Agent ${agent.agent_number} using prompt variant: ${promptVariant}`);
       let content: { html: string; error?: string };
       let oldContent: { html: string; error?: string } | undefined;
       let browserlessData: Record<string, unknown> | undefined;
@@ -633,10 +639,11 @@ Deno.serve(async (req) => {
 
       // 8. Store report
       if (runId) {
+        const reportWithVariant = { ...report, prompt_variant: promptVariant };
         await supabase
           .from("agent_runs")
           .update({
-            report: report as unknown as Record<string, unknown>,
+            report: reportWithVariant as unknown as Record<string, unknown>,
             summary_stats: summaryStats as unknown as Record<string, unknown>,
             status: runStatus,
             model_used: model,

@@ -67,21 +67,22 @@ export function usePipelineRunner(pageId: string | undefined, onComplete?: () =>
         return;
       }
 
-      // Load page info (need mode for migration filtering)
+      // Load page info (need mode + pipeline_profile for filtering)
       const { data: page } = await supabase
         .from("pages")
-        .select("mode, old_url")
+        .select("mode, old_url, pipeline_profile")
         .eq("id", pageId)
         .single();
       if (!page) {
         toast.error("Page not found");
         return;
       }
+      const pipelineProfile = (page as any).pipeline_profile ?? "full";
 
       // Load active agents
       const { data: agents } = await supabase
         .from("agents")
-        .select("id, agent_number, name, stage_number, sort_order, is_active, migration_only")
+        .select("id, agent_number, name, stage_number, sort_order, is_active, migration_only, skip_in_blog_mode")
         .eq("is_active", true)
         .order("stage_number")
         .order("sort_order");
@@ -108,6 +109,7 @@ export function usePipelineRunner(pageId: string | undefined, onComplete?: () =>
       // Filter agents based on scope
       let agentsToRun = agents.filter((a) => {
         if (a.migration_only && page.mode === "ongoing") return false;
+        if (pipelineProfile === "blog" && (a as any).skip_in_blog_mode) return false;
         return true;
       });
 
