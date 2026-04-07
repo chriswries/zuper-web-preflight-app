@@ -2,12 +2,17 @@ import { CheckCircle2, XCircle, AlertTriangle, MinusCircle } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Badge } from "@/components/ui/badge";
+import { normalizeCheckStatus, checkBadgeClass } from "@/lib/report-helpers";
 
 const checkStatusIcon: Record<string, React.ReactNode> = {
   passed: <CheckCircle2 className="h-4 w-4 text-zuper-green" />,
-  failed: <XCircle className="h-4 w-4 text-destructive" />,
+  pass: <CheckCircle2 className="h-4 w-4 text-zuper-green" />,
+  failed: <XCircle className="h-4 w-4 text-zuper-red" />,
+  fail: <XCircle className="h-4 w-4 text-zuper-red" />,
   warning: <AlertTriangle className="h-4 w-4 text-zuper-amber" />,
-  skipped: <MinusCircle className="h-4 w-4 text-muted-foreground" />,
+  skipped: <MinusCircle className="h-4 w-4 text-zuper-gray" />,
+  skip: <MinusCircle className="h-4 w-4 text-zuper-gray" />,
+  error: <XCircle className="h-4 w-4 text-zuper-red" />,
 };
 
 interface ReportCheck {
@@ -55,28 +60,28 @@ export function AgentReportCard({ report, summaryStats }: AgentReportCardProps) 
         )}
 
         <div className="space-y-2">
-          {report.checks.map((check, i) => (
-            <div key={i} className="flex items-start gap-2 py-2 border-b border-border last:border-0">
-              <div className="mt-0.5 shrink-0">
-                {checkStatusIcon[check.status] || checkStatusIcon.skipped}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-sm text-foreground">{check.check_name}</span>
-                  <Badge
-                    variant={check.status === "passed" ? "secondary" : "destructive"}
-                    className="text-[10px] h-4"
-                  >
-                    {check.status}
-                  </Badge>
+          {report.checks.map((check, i) => {
+            const normalized = normalizeCheckStatus(check.status);
+            return (
+              <div key={i} className="flex items-start gap-2 py-2 border-b border-border last:border-0">
+                <div className="mt-0.5 shrink-0">
+                  {checkStatusIcon[check.status] || checkStatusIcon.skipped}
                 </div>
-                <p className="text-xs text-muted-foreground mt-0.5">{check.details}</p>
-                {check.recommendation && (
-                  <p className="text-xs text-primary mt-0.5">💡 {check.recommendation}</p>
-                )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-sm text-foreground">{check.check_name}</span>
+                    <Badge className={`text-[10px] h-4 ${checkBadgeClass(check.status)}`}>
+                      {normalized}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">{check.details}</p>
+                  {check.recommendation && (
+                    <p className="text-xs text-primary mt-0.5">💡 {check.recommendation}</p>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </CardContent>
     </Card>
