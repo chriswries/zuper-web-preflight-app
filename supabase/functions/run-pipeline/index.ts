@@ -123,7 +123,7 @@ Deno.serve(async (req) => {
     // Load all agents
     const { data: agents } = await supabase
       .from("agents")
-      .select("id, agent_number, name, stage_number, sort_order, is_active, is_blocking, migration_only")
+      .select("id, agent_number, name, stage_number, sort_order, is_active, is_blocking, migration_only, skip_in_blog_mode")
       .eq("is_active", true)
       .order("stage_number")
       .order("sort_order");
@@ -154,6 +154,8 @@ Deno.serve(async (req) => {
     let agentsToRun = agents.filter((a) => {
       // Skip migration-only agents for ongoing pages
       if (a.migration_only && page.mode === "ongoing") return false;
+      // Skip blog-excluded agents for blog-profile pages
+      if (page.pipeline_profile === "blog" && a.skip_in_blog_mode) return false;
       return true;
     });
 

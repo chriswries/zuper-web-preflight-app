@@ -309,7 +309,11 @@ export default function PageDetailPage() {
             ) : (
               <Play className="h-4 w-4 mr-1" />
             )}
-            {isPipelineActive ? "QA Running…" : "Run All"}
+            {isPipelineActive
+              ? "QA Running…"
+              : page.pipeline_profile === "blog"
+                ? "Run All (Blog QA)"
+                : "Run All"}
           </Button>
         )}
         <Button
