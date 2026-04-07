@@ -61,6 +61,7 @@ export default function PagesPage() {
   const { isAdmin, user } = useAuth();
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState("all");
+  const [profileFilter, setProfileFilter] = useState("all");
   const [ownerFilter, setOwnerFilter] = useState<"all" | "mine">("all");
   const [searchInput, setSearchInput] = useState("");
   const debouncedSearch = useDebouncedValue(searchInput, 200);
@@ -184,8 +185,11 @@ export default function PagesPage() {
     }
   };
 
-  // Client-side search filter
+  // Client-side search + profile filter
   const filteredPages = (pages ?? []).filter((page) => {
+    // Profile filter
+    if (profileFilter !== "all" && (page as any).pipeline_profile !== profileFilter) return false;
+    // Search filter
     if (!debouncedSearch) return true;
     const q = debouncedSearch.toLowerCase();
     return (
@@ -242,6 +246,16 @@ export default function PagesPage() {
                   {s.label}
                 </SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+          <Select value={profileFilter} onValueChange={setProfileFilter}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Profiles</SelectItem>
+              <SelectItem value="full">Full</SelectItem>
+              <SelectItem value="blog">Blog</SelectItem>
             </SelectContent>
           </Select>
           <div className="flex items-center rounded-md border border-border overflow-hidden text-sm">
@@ -327,9 +341,16 @@ export default function PagesPage() {
                     {page.new_url}
                   </td>
                   <td className="px-4 py-3">
-                    <Badge variant={page.mode === "migration" ? "default" : "secondary"} className="text-xs">
-                      {page.mode === "migration" ? "Migration" : "Ongoing"}
-                    </Badge>
+                    <div className="flex items-center gap-1">
+                      <Badge variant={page.mode === "migration" ? "default" : "secondary"} className="text-xs">
+                        {page.mode === "migration" ? "Migration" : "Ongoing"}
+                      </Badge>
+                      {(page as any).pipeline_profile === "blog" && (
+                        <Badge className="text-xs bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))] border-[hsl(var(--primary))]/20 hover:bg-[hsl(var(--primary))]/15" variant="outline">
+                          Blog
+                        </Badge>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <StatusBadge status={page.status} />

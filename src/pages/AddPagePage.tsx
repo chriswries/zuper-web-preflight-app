@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,6 +18,7 @@ export default function AddPagePage() {
   const [oldUrl, setOldUrl] = useState("");
   const [slug, setSlug] = useState("");
   const [targetKeyword, setTargetKeyword] = useState("");
+  const [pipelineProfile, setPipelineProfile] = useState<"full" | "blog">("full");
   const [figmaFile, setFigmaFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [duplicate, setDuplicate] = useState<{ id: string; slug: string | null } | null>(null);
@@ -89,6 +91,7 @@ export default function AddPagePage() {
         targetKeyword: targetKeyword.trim() || null,
         figmaCompPath: figmaPath,
         createdBy: user.id,
+        pipelineProfile,
       });
 
       toast.success("Page created successfully");
@@ -222,6 +225,33 @@ export default function AddPagePage() {
                 Click to upload PNG or JPG (max 5 MB)
               </div>
             )}
+          </div>
+
+          {/* Pipeline Profile */}
+          <div className="space-y-2">
+            <Label>Pipeline Profile</Label>
+            <RadioGroup value={pipelineProfile} onValueChange={(v) => setPipelineProfile(v as "full" | "blog")} className="grid grid-cols-2 gap-3">
+              <label
+                htmlFor="profile-full"
+                className={`flex flex-col gap-1 rounded-lg border p-3 cursor-pointer transition-colors ${pipelineProfile === "full" ? "border-primary bg-primary/5" : "border-border hover:bg-accent/50"}`}
+              >
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="full" id="profile-full" />
+                  <span className="font-medium text-sm text-foreground">Full Preflight</span>
+                </div>
+                <span className="text-xs text-muted-foreground ml-6">Runs all 15 agents. Use for new pages or first-time QA.</span>
+              </label>
+              <label
+                htmlFor="profile-blog"
+                className={`flex flex-col gap-1 rounded-lg border p-3 cursor-pointer transition-colors ${pipelineProfile === "blog" ? "border-primary bg-primary/5" : "border-border hover:bg-accent/50"}`}
+              >
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="blog" id="profile-blog" />
+                  <span className="font-medium text-sm text-foreground">Blog QA</span>
+                </div>
+                <span className="text-xs text-muted-foreground ml-6">Runs 7 content-focused agents. Use for blog posts with a validated shared template.</span>
+              </label>
+            </RadioGroup>
           </div>
 
           {/* Actions */}
