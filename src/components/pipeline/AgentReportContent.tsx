@@ -8,6 +8,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { format } from "date-fns";
 import { FlagButton } from "@/components/pipeline/FlagButton";
 import { useFindingFlagsForRun, type FindingFlag } from "@/hooks/useFindingFlags";
+import { normalizeCheckStatus, checkBadgeClass } from "@/lib/report-helpers";
 
 const LOWER_CONFIDENCE_AGENTS = [8, 9, 10, 13];
 
@@ -27,13 +28,18 @@ const SEVERITY_COLORS: Record<string, string> = {
   major: "bg-zuper-red/80 text-white border-transparent",
   minor: "bg-zuper-amber text-white border-transparent",
   info: "bg-muted text-muted-foreground border-transparent",
+  error: "bg-zuper-red text-white border-transparent",
 };
 
 const statusIcon: Record<string, React.ReactNode> = {
   passed: <CheckCircle2 className="h-4 w-4 text-zuper-green" />,
+  pass: <CheckCircle2 className="h-4 w-4 text-zuper-green" />,
   failed: <XCircle className="h-4 w-4 text-zuper-red" />,
+  fail: <XCircle className="h-4 w-4 text-zuper-red" />,
   warning: <AlertTriangle className="h-4 w-4 text-zuper-amber" />,
   skipped: <MinusCircle className="h-4 w-4 text-zuper-gray" />,
+  skip: <MinusCircle className="h-4 w-4 text-zuper-gray" />,
+  error: <XCircle className="h-4 w-4 text-zuper-red" />,
 };
 
 export interface ReportCheck {
@@ -84,7 +90,8 @@ function CheckRow({ check, isLowerConfidence, agentRunId, pageId, agentName, age
   pageSlug?: string;
   existingFlag?: FindingFlag;
 }) {
-  const defaultExpanded = check.status === "failed" || check.status === "warning";
+  const normalized = normalizeCheckStatus(check.status);
+  const defaultExpanded = normalized === "failed" || normalized === "warning" || normalized === "error";
   const [expanded, setExpanded] = useState(defaultExpanded);
   const severityClass = SEVERITY_COLORS[check.severity || "info"] || SEVERITY_COLORS.info;
 
@@ -107,7 +114,7 @@ function CheckRow({ check, isLowerConfidence, agentRunId, pageId, agentName, age
             <Eye className="h-2.5 w-2.5 mr-0.5" />Review
           </Badge>
         )}
-        {(check.status === "failed" || check.status === "warning") && agentRunId && pageId && agentName && agentNumber != null && pageUrl && (
+        {(normalized === "failed" || normalized === "warning" || normalized === "error") && agentRunId && pageId && agentName && agentNumber != null && pageUrl && (
           <FlagButton
             agentRunId={agentRunId}
             pageId={pageId}
@@ -121,8 +128,8 @@ function CheckRow({ check, isLowerConfidence, agentRunId, pageId, agentName, age
             existingFlag={existingFlag}
           />
         )}
-        <Badge variant={check.status === "passed" ? "secondary" : "destructive"} className="text-[10px] h-4">
-          {check.status}
+        <Badge className={`text-[10px] h-4 ${checkBadgeClass(check.status)}`}>
+          {normalized}
         </Badge>
       </button>
 

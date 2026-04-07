@@ -105,10 +105,10 @@ interface AgentReport {
 function computeSummaryStats(checks: AgentReport["checks"]) {
   return {
     total_checks: checks.length,
-    passed: checks.filter((c) => c.status === "passed").length,
-    failed: checks.filter((c) => c.status === "failed").length,
+    passed: checks.filter((c) => c.status === "passed" || c.status === "pass").length,
+    failed: checks.filter((c) => c.status === "failed" || c.status === "fail").length,
     warnings: checks.filter((c) => c.status === "warning").length,
-    skipped: checks.filter((c) => c.status === "skipped").length,
+    skipped: checks.filter((c) => c.status === "skipped" || c.status === "skip").length,
   };
 }
 
