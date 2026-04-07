@@ -1,4 +1,4 @@
-import { FileText, Plus, Filter, Trash2, Loader2, Search, X } from "lucide-react";
+import { FileText, Plus, Filter, Trash2, Loader2, Search, X, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
@@ -76,6 +76,37 @@ export default function PagesPage() {
       const { data, error } = await query;
       if (error) throw error;
       return data as PageRow[];
+    },
+  });
+
+  // Fetch pipeline durations in a single batch query
+  const { data: durations } = useQuery({
+    queryKey: ["page-durations"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("agent_runs")
+        .select("page_id, started_at, completed_at")
+        .not("started_at", "is", null)
+        .not("completed_at", "is", null);
+      if (error) throw error;
+
+      const map: Record<string, number> = {};
+      const grouped: Record<string, { minStart: number; maxEnd: number }> = {};
+      for (const run of data) {
+        const start = new Date(run.started_at!).getTime();
+        const end = new Date(run.completed_at!).getTime();
+        const existing = grouped[run.page_id];
+        if (!existing) {
+          grouped[run.page_id] = { minStart: start, maxEnd: end };
+        } else {
+          if (start < existing.minStart) existing.minStart = start;
+          if (end > existing.maxEnd) existing.maxEnd = end;
+        }
+      }
+      for (const [pageId, { minStart, maxEnd }] of Object.entries(grouped)) {
+        map[pageId] = Math.max(0, maxEnd - minStart);
+      }
+      return map;
     },
   });
 
@@ -265,6 +296,7 @@ export default function PagesPage() {
                 <th className="text-left font-medium text-muted-foreground px-4 py-3">URL</th>
                 <th className="text-left font-medium text-muted-foreground px-4 py-3">Mode</th>
                 <th className="text-left font-medium text-muted-foreground px-4 py-3">Status</th>
+                <th className="text-left font-medium text-muted-foreground px-4 py-3">Time</th>
                 <th className="text-left font-medium text-muted-foreground px-4 py-3">Created</th>
                 <th className="text-left font-medium text-muted-foreground px-4 py-3">Owner</th>
                 <th className="text-right font-medium text-muted-foreground px-4 py-3 w-24">Actions</th>
@@ -290,6 +322,18 @@ export default function PagesPage() {
                   </td>
                   <td className="px-4 py-3">
                     <StatusBadge status={page.status} />
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
+                    {page.status === "in_progress" ? (
+                      <span className="inline-flex items-center gap-1 text-primary">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        <span className="text-xs">Running</span>
+                      </span>
+                    ) : durations?.[page.id] != null ? (
+                      formatDuration(durations[page.id])
+                    ) : (
+                      "—"
+                    )}
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">
                     {format(new Date(page.created_at), "MMM d, yyyy")}
