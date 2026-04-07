@@ -41,6 +41,8 @@ type AgentRow = {
   is_active: boolean;
   is_blocking: boolean;
   system_prompt: string | null;
+  blog_system_prompt: string | null;
+  skip_in_blog_mode: boolean;
   description: string | null;
 };
 
@@ -53,7 +55,7 @@ export default function AgentsPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("agents")
-        .select("id, agent_number, name, stage_number, model_tier, confidence_tier, is_active, is_blocking, system_prompt, description")
+        .select("id, agent_number, name, stage_number, model_tier, confidence_tier, is_active, is_blocking, system_prompt, blog_system_prompt, skip_in_blog_mode, description")
         .order("agent_number");
       if (error) throw error;
       return data as AgentRow[];
@@ -97,6 +99,15 @@ export default function AgentsPage() {
                     {conf.label}
                   </Badge>
                 )}
+                {(() => {
+                  if (agent.skip_in_blog_mode) {
+                    return <Badge variant="outline" className="text-[10px] h-4 text-muted-foreground border-muted-foreground/30">Skipped</Badge>;
+                  }
+                  const hasBlogPrompt = !!(agent as any).blog_system_prompt?.trim();
+                  return hasBlogPrompt
+                    ? <Badge variant="outline" className="text-[10px] h-4 text-zuper-green border-zuper-green/30 bg-zuper-green/10">Blog</Badge>
+                    : <Badge variant="outline" className="text-[10px] h-4 text-zuper-amber border-zuper-amber/30 bg-zuper-amber/10">Needs prompt</Badge>;
+                })()}
                 <Badge variant="outline" className="text-[10px] h-4">
                   {agent.model_tier}
                 </Badge>
@@ -136,15 +147,18 @@ function AgentConfigPanel({
   onSaved: () => void;
 }) {
   const [prompt, setPrompt] = useState(agent.system_prompt ?? "");
+  const [blogPrompt, setBlogPrompt] = useState((agent as any).blog_system_prompt ?? "");
   const [modelTier, setModelTier] = useState(agent.model_tier);
   const [isActive, setIsActive] = useState(agent.is_active);
   const [saving, setSaving] = useState(false);
   const configDef = CONFIGURABLE_AGENTS[agent.agent_number];
   const isTrackingAgent = agent.agent_number === TRACKING_CONFIG_AGENT;
   const hasConfigTab = !!configDef || isTrackingAgent;
+  const skipInBlog = (agent as any).skip_in_blog_mode ?? false;
 
   useEffect(() => {
     setPrompt(agent.system_prompt ?? "");
+    setBlogPrompt((agent as any).blog_system_prompt ?? "");
     setModelTier(agent.model_tier);
     setIsActive(agent.is_active);
   }, [agent]);
@@ -152,12 +166,18 @@ function AgentConfigPanel({
   const saveAgent = async () => {
     setSaving(true);
     try {
-      const before = { system_prompt: agent.system_prompt, model_tier: agent.model_tier, is_active: agent.is_active };
-      const after = { system_prompt: prompt, model_tier: modelTier, is_active: isActive };
+      const before = { system_prompt: agent.system_prompt, blog_system_prompt: (agent as any).blog_system_prompt, model_tier: agent.model_tier, is_active: agent.is_active };
+      const after = { system_prompt: prompt, blog_system_prompt: blogPrompt, model_tier: modelTier, is_active: isActive };
 
       const { error } = await supabase
         .from("agents")
-        .update({ system_prompt: prompt, model_tier: modelTier as any, is_active: isActive, updated_at: new Date().toISOString() })
+        .update({
+          system_prompt: prompt,
+          blog_system_prompt: blogPrompt,
+          model_tier: modelTier as any,
+          is_active: isActive,
+          updated_at: new Date().toISOString(),
+        } as any)
         .eq("id", agent.id);
       if (error) throw error;
 
@@ -178,7 +198,7 @@ function AgentConfigPanel({
     }
   };
 
-  const hasChanges = prompt !== (agent.system_prompt ?? "") || modelTier !== agent.model_tier || isActive !== agent.is_active;
+  const hasChanges = prompt !== (agent.system_prompt ?? "") || blogPrompt !== ((agent as any).blog_system_prompt ?? "") || modelTier !== agent.model_tier || isActive !== agent.is_active;
 
   return (
     <Card>
@@ -200,6 +220,7 @@ function AgentConfigPanel({
         <Tabs defaultValue="prompt">
           <TabsList>
             <TabsTrigger value="prompt">Prompt</TabsTrigger>
+            <TabsTrigger value="blog-prompt">Blog Prompt</TabsTrigger>
             {hasConfigTab && <TabsTrigger value="config">Configuration</TabsTrigger>}
           </TabsList>
 
@@ -239,6 +260,31 @@ function AgentConfigPanel({
                   <span className="text-xs text-muted-foreground">{isActive ? "Runs in pipeline" : "Skipped"}</span>
                 </div>
               </div>
+            </div>
+
+            <Button onClick={saveAgent} disabled={saving || !hasChanges}>
+              {saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
+              Save Changes
+            </Button>
+          </TabsContent>
+
+          <TabsContent value="blog-prompt" className="space-y-4 mt-4">
+            {skipInBlog && (
+              <div className="rounded-md bg-muted px-3 py-2 flex items-center gap-2">
+                <Badge variant="outline" className="text-xs text-muted-foreground border-muted-foreground/30">Skipped in Blog Mode</Badge>
+                <span className="text-xs text-muted-foreground">This agent is skipped when running Blog QA. Blog prompt is not needed.</span>
+              </div>
+            )}
+
+            <div className={`space-y-2 ${skipInBlog ? "opacity-50" : ""}`}>
+              <label className="text-sm font-medium text-foreground">Blog Mode System Prompt</label>
+              <p className="text-xs text-muted-foreground">Used when this agent runs on pages with the Blog QA pipeline profile. Leave empty to use the standard system prompt as a fallback.</p>
+              <Textarea
+                value={blogPrompt}
+                onChange={(e) => setBlogPrompt(e.target.value)}
+                className="min-h-[300px] font-mono text-xs leading-relaxed"
+                placeholder="Enter the blog-specific system prompt..."
+              />
             </div>
 
             <Button onClick={saveAgent} disabled={saving || !hasChanges}>
