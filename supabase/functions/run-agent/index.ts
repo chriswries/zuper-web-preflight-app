@@ -155,6 +155,44 @@ function injectConfigs(
   return result;
 }
 
+/**
+ * Robustly extract and parse a JSON AgentReport from raw LLM text.
+ * Handles markdown fences, trailing commas, control chars, and truncation.
+ */
+function extractAndParseReport(raw: string): AgentReport | null {
+  // Strip markdown code fences
+  let cleaned = raw
+    .replace(/^```(?:json)?\s*/gim, "")
+    .replace(/\s*```$/gm, "")
+    .trim();
+
+  // Find outermost JSON object
+  const jsonStart = cleaned.indexOf("{");
+  const jsonEnd = cleaned.lastIndexOf("}");
+  if (jsonStart === -1 || jsonEnd === -1 || jsonEnd <= jsonStart) return null;
+
+  cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
+
+  // First attempt: parse as-is
+  try {
+    const parsed = JSON.parse(cleaned) as AgentReport;
+    if (parsed.checks && Array.isArray(parsed.checks)) return parsed;
+  } catch { /* continue to sanitize */ }
+
+  // Second attempt: fix common issues
+  cleaned = cleaned
+    .replace(/,\s*}/g, "}")        // trailing commas in objects
+    .replace(/,\s*]/g, "]")        // trailing commas in arrays
+    .replace(/[\x00-\x1F\x7F]/g, (ch) => ch === "\n" || ch === "\t" ? ch : ""); // control chars
+
+  try {
+    const parsed = JSON.parse(cleaned) as AgentReport;
+    if (parsed.checks && Array.isArray(parsed.checks)) return parsed;
+  } catch { /* give up */ }
+
+  return null;
+}
+
 async function callAnthropic(
   apiKey: string,
   model: string,
