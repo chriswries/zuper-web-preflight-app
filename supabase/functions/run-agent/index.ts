@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const AGENT_TIMEOUT_MS = 60_000;
-const MAX_TOKENS = 4096;
+const MAX_TOKENS = 8192;
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 
 const MODEL_MAP: Record<string, string> = {
