@@ -243,28 +243,27 @@ async function callAnthropic(
     const data = await res.json();
     const content = data.content?.[0]?.text || "";
 
-    // Parse JSON from response (handle markdown fences)
-    let jsonStr = content.trim();
-    if (jsonStr.startsWith("```")) {
-      jsonStr = jsonStr.replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "");
-    }
-
-    try {
-      const report = JSON.parse(jsonStr) as AgentReport;
-      if (!report.checks || !Array.isArray(report.checks)) {
-        throw new Error("Missing checks array");
-      }
+    // Parse JSON from response — robust extraction
+    const report = extractAndParseReport(content);
+    if (report) {
       return {
         report,
         rateLimitRemaining: rlRemaining ? parseInt(rlRemaining, 10) : undefined,
       };
-    } catch (parseErr) {
-      if (!retryStrict) {
-        // Retry with stricter prompt (keep same rateLimitRetries count)
-        return callAnthropic(apiKey, model, systemPrompt, userMessage, true, rateLimitRetries);
-      }
-      throw new Error("Agent produced unparseable results.");
     }
+
+    if (!retryStrict) {
+      // Retry with stricter prompt (keep same rateLimitRetries count)
+      return callAnthropic(apiKey, model, systemPrompt, userMessage, true, rateLimitRetries);
+    }
+
+    // Check if response looks truncated (stop_reason = max_tokens)
+    const stopReason = data.stop_reason;
+    const truncationNote = stopReason === "max_tokens"
+      ? " Response was truncated (hit max_tokens limit)."
+      : "";
+    console.error("Unparseable response (first 500 chars):", content.slice(0, 500));
+    throw new Error(`Agent produced unparseable results.${truncationNote}`);
   } finally {
     clearTimeout(timeout);
   }
