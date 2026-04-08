@@ -354,6 +354,10 @@ function buildUserMessage(
 ): string {
   const parts: string[] = [];
 
+  // Provide current date context for temporal reasoning (copyright years, publish dates, etc.)
+  const now = new Date();
+  parts.push(`Today's date is ${now.toISOString().split('T')[0]} (${now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}).`);
+
   if (content.error) {
     parts.push(`[Content acquisition error: ${content.error}]`);
   }
