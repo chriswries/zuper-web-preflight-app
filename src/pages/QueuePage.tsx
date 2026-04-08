@@ -1,9 +1,12 @@
 import { useState, useMemo } from "react";
-import { ListTodo, Plus, GripVertical, Play, SkipForward, RotateCcw, Loader2, Filter } from "lucide-react";
+import { ListTodo, Plus, GripVertical, Play, Square, SkipForward, RotateCcw, Loader2, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/StatusBadge";
+import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { createPageWithRuns } from "@/lib/page-helpers";
 import { AddToQueueModal } from "@/components/AddToQueueModal";
+import { useBatchProcessor } from "@/hooks/useBatchProcessor";
 import { toast } from "sonner";
 import {
   DndContext,
@@ -44,6 +48,7 @@ function SortableQueueRow({
   onUnskip,
   onRelease,
   claiming,
+  batchRunning,
 }: {
   item: QueueRow;
   userId: string;
@@ -53,6 +58,7 @@ function SortableQueueRow({
   onUnskip: (id: string) => void;
   onRelease: (id: string) => void;
   claiming: string | null;
+  batchRunning: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: item.id });
   const style = { transform: CSS.Transform.toString(transform), transition };
@@ -100,30 +106,39 @@ function SortableQueueRow({
 
       <div className="flex items-center gap-1 shrink-0">
         {canClaim && (
-          <Button size="sm" onClick={() => onClaim(item.id)} disabled={isClaiming}>
+          <Button size="sm" onClick={() => onClaim(item.id)} disabled={isClaiming || batchRunning}>
             {isClaiming ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3 mr-1" />}
             Claim & Start
           </Button>
         )}
         {isSkipped && (
-          <Button size="sm" variant="outline" onClick={() => onUnskip(item.id)}>
+          <Button size="sm" variant="outline" onClick={() => onUnskip(item.id)} disabled={batchRunning}>
             <RotateCcw className="h-3 w-3 mr-1" />
             Un-skip
           </Button>
         )}
         {!isSkipped && !isPromoted && !isClaimed && (
-          <Button size="sm" variant="ghost" onClick={() => onSkip(item.id)}>
+          <Button size="sm" variant="ghost" onClick={() => onSkip(item.id)} disabled={batchRunning}>
             <SkipForward className="h-3 w-3" />
           </Button>
         )}
         {isClaimed && !isPromoted && isAdmin && (
-          <Button size="sm" variant="outline" onClick={() => onRelease(item.id)}>
+          <Button size="sm" variant="outline" onClick={() => onRelease(item.id)} disabled={batchRunning}>
             Release
           </Button>
         )}
       </div>
     </div>
   );
+}
+
+function formatElapsed(ms: number): string {
+  const s = Math.floor(ms / 1000);
+  const m = Math.floor(s / 60);
+  const h = Math.floor(m / 60);
+  if (h > 0) return `${h}h ${m % 60}m`;
+  if (m > 0) return `${m}m ${s % 60}s`;
+  return `${s}s`;
 }
 
 export default function QueuePage() {
@@ -134,6 +149,12 @@ export default function QueuePage() {
   const [claiming, setClaiming] = useState<string | null>(null);
   const [batchFilter, setBatchFilter] = useState<string>("all");
   const [bulkAction, setBulkAction] = useState(false);
+  const [batchSize, setBatchSize] = useState(10);
+  const [batchPopoverOpen, setBatchPopoverOpen] = useState(false);
+
+  const { progress: batchProgress, startBatch, stopBatch } = useBatchProcessor(() => {
+    queryClient.invalidateQueries({ queryKey: ["queue"] });
+  });
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -150,6 +171,7 @@ export default function QueuePage() {
       if (error) throw error;
       return data as QueueRow[];
     },
+    refetchInterval: batchProgress.isRunning ? 5000 : false,
   });
 
   // Batch names for filter
@@ -279,6 +301,14 @@ export default function QueuePage() {
     }
   };
 
+  const handleStartBatch = () => {
+    const queuedItems = filteredItems
+      .filter((i) => i.status === "queued")
+      .map((i) => i as Tables<"page_queue">);
+    setBatchPopoverOpen(false);
+    startBatch(queuedItems, batchSize);
+  };
+
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id || !filteredItems) return;
@@ -290,7 +320,6 @@ export default function QueuePage() {
     queryClient.setQueryData(["queue"], (prev: QueueRow[] | undefined) => {
       if (!prev) return prev;
       if (batchFilter === "all") return reordered;
-      // Merge reordered filtered items back into full list
       const reorderedMap = new Map(reordered.map((item, i) => [item.id, i]));
       return prev.map((item) => {
         const newOrder = reorderedMap.get(item.id);
@@ -312,11 +341,44 @@ export default function QueuePage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-foreground">QA Queue</h1>
-        <Button onClick={() => setModalOpen(true)}>
+        <Button onClick={() => setModalOpen(true)} disabled={batchProgress.isRunning}>
           <Plus className="h-4 w-4 mr-1" />
           Add to Queue
         </Button>
       </div>
+
+      {/* Batch Progress Bar */}
+      {batchProgress.isRunning && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="py-4 px-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-foreground">
+                  Processing page {batchProgress.currentPageIndex + 1} of {batchProgress.totalPages}
+                  {batchProgress.currentAgentName && (
+                    <span className="text-muted-foreground font-normal"> — {batchProgress.currentAgentName}</span>
+                  )}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {batchProgress.pagesCompleted} page{batchProgress.pagesCompleted !== 1 ? "s" : ""} completed
+                  {batchProgress.startedAt && ` • ${formatElapsed(Date.now() - batchProgress.startedAt)} elapsed`}
+                </p>
+              </div>
+              <Button size="sm" variant="destructive" onClick={stopBatch}>
+                <Square className="h-3 w-3 mr-1" />
+                Stop Batch
+              </Button>
+            </div>
+            <Progress
+              value={((batchProgress.pagesCompleted + (batchProgress.agentTotal > 0 ? batchProgress.agentCompleted / batchProgress.agentTotal : 0)) / batchProgress.totalPages) * 100}
+              className="h-2"
+            />
+            {batchProgress.currentPageUrl && (
+              <p className="text-xs font-mono text-muted-foreground truncate">{batchProgress.currentPageUrl}</p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Metrics */}
       {items && items.length > 0 && (
@@ -362,14 +424,42 @@ export default function QueuePage() {
           </div>
 
           <div className="flex items-center gap-1 ml-auto">
+            {queuedInView > 0 && !batchProgress.isRunning && (
+              <Popover open={batchPopoverOpen} onOpenChange={setBatchPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button size="sm" variant="default">
+                    <Play className="h-3 w-3 mr-1" />
+                    Process Next N
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56 p-3" align="end">
+                  <div className="space-y-3">
+                    <p className="text-sm font-medium text-foreground">How many pages?</p>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={queuedInView}
+                      value={batchSize}
+                      onChange={(e) => setBatchSize(Math.max(1, Math.min(queuedInView, parseInt(e.target.value) || 1)))}
+                      className="h-8"
+                    />
+                    <p className="text-xs text-muted-foreground">{queuedInView} queued in current view</p>
+                    <Button size="sm" className="w-full" onClick={handleStartBatch}>
+                      <Play className="h-3 w-3 mr-1" />
+                      Start
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
             {queuedInView > 0 && (
-              <Button size="sm" variant="outline" onClick={handleBulkSkip} disabled={bulkAction}>
+              <Button size="sm" variant="outline" onClick={handleBulkSkip} disabled={bulkAction || batchProgress.isRunning}>
                 {bulkAction ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <SkipForward className="h-3 w-3 mr-1" />}
                 Skip All ({queuedInView})
               </Button>
             )}
             {skippedInView > 0 && (
-              <Button size="sm" variant="outline" onClick={handleBulkUnskip} disabled={bulkAction}>
+              <Button size="sm" variant="outline" onClick={handleBulkUnskip} disabled={bulkAction || batchProgress.isRunning}>
                 {bulkAction ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RotateCcw className="h-3 w-3 mr-1" />}
                 Un-skip All ({skippedInView})
               </Button>
@@ -425,6 +515,7 @@ export default function QueuePage() {
                   onUnskip={handleUnskip}
                   onRelease={handleRelease}
                   claiming={claiming}
+                  batchRunning={batchProgress.isRunning}
                 />
               ))}
             </div>

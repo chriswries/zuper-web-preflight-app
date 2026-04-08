@@ -20,7 +20,7 @@ interface AddToQueueModalProps {
   onSuccess: () => void;
 }
 
-const MAX_URLS = 200;
+const MAX_URLS = 1000;
 
 export function AddToQueueModal({ open, onClose, onSuccess }: AddToQueueModalProps) {
   const { user } = useAuth();
