@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const AGENT_TIMEOUT_MS = 60_000;
-const MAX_TOKENS = 4096;
+const MAX_TOKENS = 8192;
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 
 const MODEL_MAP: Record<string, string> = {
@@ -155,6 +155,44 @@ function injectConfigs(
   return result;
 }
 
+/**
+ * Robustly extract and parse a JSON AgentReport from raw LLM text.
+ * Handles markdown fences, trailing commas, control chars, and truncation.
+ */
+function extractAndParseReport(raw: string): AgentReport | null {
+  // Strip markdown code fences
+  let cleaned = raw
+    .replace(/^```(?:json)?\s*/gim, "")
+    .replace(/\s*```$/gm, "")
+    .trim();
+
+  // Find outermost JSON object
+  const jsonStart = cleaned.indexOf("{");
+  const jsonEnd = cleaned.lastIndexOf("}");
+  if (jsonStart === -1 || jsonEnd === -1 || jsonEnd <= jsonStart) return null;
+
+  cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
+
+  // First attempt: parse as-is
+  try {
+    const parsed = JSON.parse(cleaned) as AgentReport;
+    if (parsed.checks && Array.isArray(parsed.checks)) return parsed;
+  } catch { /* continue to sanitize */ }
+
+  // Second attempt: fix common issues
+  cleaned = cleaned
+    .replace(/,\s*}/g, "}")        // trailing commas in objects
+    .replace(/,\s*]/g, "]")        // trailing commas in arrays
+    .replace(/[\x00-\x1F\x7F]/g, (ch) => ch === "\n" || ch === "\t" ? ch : ""); // control chars
+
+  try {
+    const parsed = JSON.parse(cleaned) as AgentReport;
+    if (parsed.checks && Array.isArray(parsed.checks)) return parsed;
+  } catch { /* give up */ }
+
+  return null;
+}
+
 async function callAnthropic(
   apiKey: string,
   model: string,
@@ -243,28 +281,27 @@ async function callAnthropic(
     const data = await res.json();
     const content = data.content?.[0]?.text || "";
 
-    // Parse JSON from response (handle markdown fences)
-    let jsonStr = content.trim();
-    if (jsonStr.startsWith("```")) {
-      jsonStr = jsonStr.replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "");
-    }
-
-    try {
-      const report = JSON.parse(jsonStr) as AgentReport;
-      if (!report.checks || !Array.isArray(report.checks)) {
-        throw new Error("Missing checks array");
-      }
+    // Parse JSON from response — robust extraction
+    const report = extractAndParseReport(content);
+    if (report) {
       return {
         report,
         rateLimitRemaining: rlRemaining ? parseInt(rlRemaining, 10) : undefined,
       };
-    } catch (parseErr) {
-      if (!retryStrict) {
-        // Retry with stricter prompt (keep same rateLimitRetries count)
-        return callAnthropic(apiKey, model, systemPrompt, userMessage, true, rateLimitRetries);
-      }
-      throw new Error("Agent produced unparseable results.");
     }
+
+    if (!retryStrict) {
+      // Retry with stricter prompt (keep same rateLimitRetries count)
+      return callAnthropic(apiKey, model, systemPrompt, userMessage, true, rateLimitRetries);
+    }
+
+    // Check if response looks truncated (stop_reason = max_tokens)
+    const stopReason = data.stop_reason;
+    const truncationNote = stopReason === "max_tokens"
+      ? " Response was truncated (hit max_tokens limit)."
+      : "";
+    console.error("Unparseable response (first 500 chars):", content.slice(0, 500));
+    throw new Error(`Agent produced unparseable results.${truncationNote}`);
   } finally {
     clearTimeout(timeout);
   }
